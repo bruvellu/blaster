@@ -1,0 +1,35 @@
+# BLASTing batch script
+
+This script takes a series of candidate genes, BLAST them against a local 
+database (eg, transcriptome from an organism) to extract relevant sequences, 
+BLAST these sequences against GenBank, and retrieve results for analysis.
+
+## Arguments
+
+`-c, --candidates` -- Folder with `.fasta` or `.gb` files of candidate genes. 
+One gene per file.
+
+`-d, --database` -- Local database with new data (eg, transcriptome). If in 
+`FASTA` format it will be converted to a database `BLAST+` can understand using
+`makeblastdb` command, example: `makeblastdb -in bugula.fasta -parse_seqids -dbtype nucl`
+
+`-b, --local-blasts` -- Folder where local BLAST results will be written.
+
+`-g, --genbank-blasts` -- Folder where GenBank BLAST results will be written.
+
+TODO: parameters for BLAST analysis.
+
+## Algorithm
+
+- Check the local database and convert if needed.
+
+- Read folder with candidate genes and standardize file formats (ie, convert 
+  `.fasta` files to `.gb`).
+
+- Generate list of candidate genes.
+
+- Call BLASTn command for each candidate.
+
+- Trim BLAST results.
+
+- BLAST results agains GenBank.
