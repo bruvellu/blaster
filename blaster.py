@@ -195,14 +195,15 @@ def main(argv):
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
             blast_db.path)
 
+    # BLAST each gene against local database.
     for gene in candidates:
         gene_filepath = os.path.join(candidate_folder, gene)
         # Instantiate the BLASTn command.
         cline = NcbiblastnCommandline(
                 query=gene_filepath, db=blast_db.path,
-                out=os.path.join(local_blasts, gene.split('.')[0]),
-                #out=os.path.join(local_blasts, gene.split('.')[0] + '.xml'),
-                #outfmt=5 # Export in XML
+                out=os.path.join(local_blasts, gene.split('.')[0] + '.xml'),
+                outfmt=5, # Export in XML
+                #out=os.path.join(local_blasts, gene.split('.')[0]), # Export txt
                 )
 
         # Execute BLAST.
@@ -210,12 +211,41 @@ def main(argv):
 
         logger.info('%s BLASTed!', gene)
 
+    # Check if genbank_blasts exists.
+    if not os.path.isdir(genbank_blasts):
+        os.mkdir(genbank_blasts)
 
-    #TODO Process local BLASTs
+    # Get alignments to be now BLASTed against GenBank.
+    sequences = os.listdir(local_blasts)
+    sequences = [seq for seq in sequences if seq.endswith('.xml')]
 
-    #TODO BLAST results against GenBank
-
-    #TODO Process remote BLASTs
+    # Each gene might have a bunch of alignments so iterate.
+    #TODO find a proper name... it is a blast output in xml.
+    logger.info('Preparing to BLAST against GenBank...')
+    for gene_name in sequences:
+        parse_me = open(os.path.join(local_blasts, gene_name))
+        genbank_dir = os.path.join(genbank_blasts, gene_name[:-4]) # strips extension
+        # Check if each gene dir exists.
+        if not os.path.isdir(genbank_dir):
+            os.mkdir(genbank_dir)
+        blast_records = NCBIXML.parse(parse_me)
+        for blast_record in blast_records:
+            E_VALUE_THRESH = 0.04
+            for alignment in blast_record.alignments:
+                for hsp in alignment.hsps:
+                    if hsp.expect < E_VALUE_THRESH:
+                        blast_file = os.path.join(genbank_dir, '%s.xml' % alignment.title)
+                        try:
+                            genbank_output = open(blast_file)
+                            logger.debug('%s already BLASTed!', alignment.title)
+                        except:
+                            logger.info('Consulting NCBI...')
+                            handle = NCBIWWW.qblast('blastn', 'nr', hsp.sbjct)
+                            handle_string = handle.read()
+                            genbank_output = open(blast_file, 'w')
+                            genbank_output.write(handle_string)
+                            genbank_output.close()
+                        sys.exit()
 
     logger.info('Done, bye!')
 
