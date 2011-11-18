@@ -112,7 +112,7 @@ def main(argv):
     # Folder with candidate-genes BLASTs.
     local_blasts = 'local_blasts'
 
-    # Folder with candidate-genes BLASTs.
+    # Folder with candidate-genes GenBank BLASTs.
     genbank_blasts = 'genbank_blasts'
 
     # Database name.
@@ -239,13 +239,12 @@ def main(argv):
                             genbank_output = open(blast_file)
                             logger.debug('%s already BLASTed!', alignment.title)
                         except:
-                            logger.info('Consulting NCBI...')
+                            logger.info('Consulting NCBI for %s: %s', gene_name[:-4], hsp.sbjct)
                             handle = NCBIWWW.qblast('blastn', 'nr', hsp.sbjct)
                             handle_string = handle.read()
                             genbank_output = open(blast_file, 'w')
                             genbank_output.write(handle_string)
                             genbank_output.close()
-                        sys.exit()
 
     logger.info('Done, bye!')
 
