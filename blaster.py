@@ -5,26 +5,24 @@
 
 Algorithm:
     - Take several genes of interest.
-    - BLAST them locally agains a transcriptome assembly.
+    - BLAST them locally against a transcriptome assembly.
     - Filter and process results to extract relevant sequences.
-    - BLAST resulting sequences against GenBank.
-    - Retrieve results for further analysis.
 
 Notes:
-    - Read files with sequences from a folder (FASTA or GenBank format). Could also be a list of IDs or
-      an pickled object, etc...
+    - Read files with sequences from a folder (FASTA format).
 
 Dependencies:
     - Python 2.7.1
     - Biopython 1.56
     - BLAST+ 2.2.25
 
-Configuration (Ubuntu):
+Configuration (Linux):
     - Regular packages for Python and Biopython.
     - Add BLAST+ commands to path putting this code to .bashrc:
 
         PATH=$PATH:/home/nelas/Downloads/ncbi-blast-2.2.25+/bin
         export PATH
+
 '''
 
 import getopt
@@ -36,98 +34,96 @@ import sys
 from Bio import SeqIO
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
-from Bio.Blast.Applications import NcbiblastnCommandline
+from Bio.Blast.Applications import NcbiblastnCommandline, NcbiblastpCommandline, NcbiblastxCommandline, NcbitblastnCommandline, NcbitblastxCommandline
+from liblast import Sequence, Locus
 
+def prepare(candidates, candidates_folder):
+    '''Check candidate gene files (convert to FASTA, if needed).'''
+    for gene in candidates:
+        gene_filepath = os.path.join(candidates_folder, gene)
 
+        if gene.endswith('.gb'):
+            # Create record object.
+            record = SeqIO.read(gene_filepath, 'genbank')
+            # Create FASTA file.
+            try:
+                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'r')
+            except IOError:
+                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'w')
+                fasta_file.write(record.format('fasta'))
+                fasta_file.close()
+        elif gene.endswith('.fa'):
+            continue
+        else:
+            logger.debug('File type not supported: %s', gene)
 
+def print_loci(genes):
+    '''Print loci equivalent to candidate genes.'''
+    print 'Creating final file...'
+    final_file = open('results.fa', 'w')
+    for name, gene in genes.iteritems():
+        for seq in gene.loci:
+            final_file.write('>%s\n' % seq.description)
+            final_file.write('%s\n\n' % seq.sequence)
+    final_file.close()
 
-class Gene:
-    '''Sequence instance of candidate gene.'''
-    def __init__(self, path):
-        self.path = path
+def blast(blast_type, arguments):
+    '''Execute BLAST command.'''
+    # Instantiate the BLAST command.
+    if blast_type == 'blastn':
+        cline = NcbiblastnCommandline(**arguments)
+    elif blast_type == 'blastp':
+        cline = NcbiblastpCommandline(**arguments)
+    elif blast_type == 'blastx':
+        cline = NcbiblastxCommandline(**arguments)
+    elif blast_type == 'tblastn':
+        cline = NcbitblastnCommandline(**arguments)
+    elif blast_type == 'tblastx':
+        cline = NcbitblastnCommandline(**arguments)
 
-class Database:
-    '''Database instance for local BLAST.
-
-    Input file should be a FASTA (for now, yes)?
-    '''
-    #TODO Check if input file is FASTA.
-    #TODO Check if makeblastdb is properly installed.
-    #TODO Check if conversion went ok.
-
-    def __init__(self, path):
-        #XXX Need to define path to makeblastdb for it to work...
-        self.MAKEBLASTDB = '/home/nelas/Downloads/ncbi-blast-2.2.25+/bin/makeblastdb'
-
-        # Database file path.
-        self.path = path
-
-        # If database is not ready, convert it.
-        if not self.check_db():
-            self.convert()
-
-    def check_db(self):
-        '''Check if database is ready or not.'''
-        flagger = self.path + '.nsq'
-        try:
-            flagger_file = open(flagger)
-            return True
-        except IOError:
-            logger.debug('Database %s needs to be converted.', self.path)
-            return False
-
-    def convert(self):
-        '''Call makeblastdb to convert database.'''
-        db_call = [self.MAKEBLASTDB, '-in', self.path, '-parse_seqids', '-dbtype', 'nucl']
-        try:
-            subprocess.call(db_call)
-            logger.debug('Database %s was converted successfully!', 
-                    self.path)
-        except:
-            logger.debug('We failed to convert the database %s :(', 
-                    self.path)
-
+    # Execute BLAST.
+    stdout, stderr = cline()
+    logger.info('%s BLASTed!', arguments['query'])
 
 def usage():
     '''Explanation for arguments.'''
 
     print
+    print 'USAGE: ./blaster.py -d Membranipora.fasta -b tblastn'
     print '  -c, --candidates \n\tFolder with `.fasta` or `.gb` files of candidate genes. One gene per file.'
-    print '  -d, --database \n\tLocal database with new data (eg, transcriptome). If in FASTA format it will be converted to a database BLAST+ can understand using "makeblastdb" command, example: "makeblastdb -in bugula.fasta -parse_seqids -dbtype nucl"'
-    print '  -b, --local-blasts \n\tFolder where local BLAST results will be written.'
-    print '  -g, --genbank-blasts \n\tFolder where GenBank BLAST results will be written.'
+    print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
+    print '  -r, --results \n\tFolder where BLAST results will be written.'
+    print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
     print
 
-    #TODO Parameters for BLAST analysis.
-
-
 def main(argv):
-    '''
-    '''
-    # Default values.
-
     # Folder with candidate-genes.
-    candidate_folder = 'candidates'
-
+    candidates_folder = 'candidates'
     # Folder with candidate-genes BLASTs.
-    local_blasts = 'local_blasts'
+    results_folder = os.path.join(candidates_folder, 'results')
 
-    # Folder with candidate-genes GenBank BLASTs.
-    genbank_blasts = 'genbank_blasts'
+    # Reverse BLAST folder
+    reverse_folder = 'reverse'
+    # Folder with candidate-genes BLASTs.
+    reverse_results_folder = os.path.join(reverse_folder, 'results')
 
     # Database name.
-    database = 'bugula.fasta'
-    # The source file from Bugula neritina transcriptome from:
-    # http://www.ncbi.nlm.nih.gov/sra/SRX015704
+    database = None
+
+    # BLAST command.
+    blast_type = None
+
+    # Available BLASTs.
+    blast_types = ['blastn', 'blastp', 'blastx', 'tblastn', 'tblastx']
 
     # Parse arguments.
     try:
-        opts, args = getopt.getopt(argv, 'hc:d:b:g:', [
+        opts, args = getopt.getopt(argv, 'hc:d:r:b:', [
             'help',
             'candidates=',
             'database=',
-            'local-blasts=',
-            'genbank-blasts=',
+            'reverse=',
+            'blast=',
             ])
     except getopt.GetoptError:
         usage()
@@ -141,110 +137,135 @@ def main(argv):
             usage()
             sys.exit()
         elif opt in ('-c', '--candidates'):
-            candidate_folder = arg
+            candidates_folder = arg
         elif opt in ('-d', '--database'):
             database = arg
-        elif opt in ('-b', '--local-blasts'):
-            local_blasts = arg
-        elif opt in ('-g', '--genbank-blasts'):
-            genbank_blasts = arg
+        elif opt in ('-b', '--blast'):
+            blast_type = arg
 
     # Print summary of arguments.
-    logger.debug(
-            'Arguments: candidates=%s, database=%s, local-blasts=%s, genbank-blasts=%s',
-            candidate_folder, database, local_blasts, genbank_blasts
-            )
+    logger.debug('Arguments: candidates=%s, database=%s', candidates_folder, database)
 
-    # Instantiate database.
-    blast_db = Database(database)
+    # Check if BLAST command was specified.
+    if not blast_type:
+        logger.critical('BLAST command was not specified (use "-b"). Aborting...')
+        sys.exit(2)
+    else:
+        if not blast_type in blast_types:
+            logger.critical('Unknown BLAST command: %s', blast_type)
+            logger.info('Available BLAST commands: %s', ', '.join(blast_types))
+            sys.exit(2)
+
+    # Check if results exists.
+    if not os.path.isdir(results_folder):
+        os.mkdir(results_folder)
+    # Check if results exists.
+    if not os.path.isdir(reverse_folder):
+        os.mkdir(reverse_folder)
+    # Check if results exists.
+    if not os.path.isdir(reverse_results_folder):
+        os.mkdir(reverse_results_folder)
 
     # Get candidate genes.
     try:
-        candidates = os.listdir(candidate_folder)
+        candidates = os.listdir(candidates_folder)
     except OSError:
-        logger.debug('Folder "%s" does not exist! Aborting...', candidate_folder)
+        logger.critical('Folder "%s" does not exist! Aborting...', candidates_folder)
         sys.exit(2)
 
     # Process candidate genes.
-    for gene in candidates:
-        gene_filepath = os.path.join(candidate_folder, gene)
-        if gene.endswith('.gb'):
-            # Create record object.
-            record = SeqIO.read(gene_filepath, 'genbank')
-            # Create FASTA file.
-            try:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'r')
-            except IOError:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'w')
-                fasta_file.write(record.format('fasta'))
-                fasta_file.close()
-        elif gene.endswith('.fasta'):
-            continue
-        else:
-            logger.debug('File type not supported: %s', gene)
-
+    prepare(candidates, candidates_folder)
     # Get proper genes, now.
-    candidates = os.listdir(candidate_folder)
-    # Only read GenBank files.
-    candidates = [file for file in candidates if file.endswith('.fasta')]
-
-    # Check if local_blasts exists.
-    if not os.path.isdir(local_blasts):
-        os.mkdir(local_blasts)
+    candidates = os.listdir(candidates_folder)
+    # Only read FASTA files.
+    candidates = [file for file in candidates if file.endswith('.fa')]
 
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
-            blast_db.path)
+            database)
+
+    # Main objects to store genes.
+    genes = {}
 
     # BLAST each gene against local database.
-    for gene in candidates:
-        gene_filepath = os.path.join(candidate_folder, gene)
-        # Instantiate the BLASTn command.
-        cline = NcbiblastnCommandline(
-                query=gene_filepath, db=blast_db.path,
-                out=os.path.join(local_blasts, gene.split('.')[0] + '.xml'),
-                outfmt=5, # Export in XML
-                #out=os.path.join(local_blasts, gene.split('.')[0]), # Export txt
-                )
+    for genefile in candidates:
+        print genefile
+        gene_name = genefile[:-3]
+        gene_filepath = os.path.join(candidates_folder, genefile)
+        output_filepath = os.path.join(results_folder, gene_name + '.xml')
 
-        # Execute BLAST.
-        stdout, stderr = cline()
+        # Only BLAST if needed.
+        try:
+            blastfile = open(output_filepath)
+            blastfile.close()
+        except:
+            arguments = {
+                'query': gene_filepath,
+                'db': database,
+                'out': output_filepath,
+                'outfmt': 5, # Export in XML
+                }
+            # Execute BLAST command.
+            blast(blast_type, arguments)
 
-        logger.info('%s BLASTed!', gene)
+        # Instantiate Sequence.
+        candidate = Sequence(filepath=gene_filepath)
+        candidate.gene_name = gene_name
+        candidate.blast_output = output_filepath
 
-    # Check if genbank_blasts exists.
-    if not os.path.isdir(genbank_blasts):
-        os.mkdir(genbank_blasts)
+        print 'Parsing xml...'
+        # BLAST records.
+        blast_records = NCBIXML.parse(open(candidate.blast_output))
 
-    # Get alignments to be now BLASTed against GenBank.
-    sequences = os.listdir(local_blasts)
-    sequences = [seq for seq in sequences if seq.endswith('.xml')]
+        # Limit for the first locus.
+        n = 0
 
-    # Each gene might have a bunch of alignments so iterate.
-    #TODO find a proper name... it is a blast output in xml.
-    logger.info('Preparing to BLAST against GenBank...')
-    for gene_name in sequences:
-        parse_me = open(os.path.join(local_blasts, gene_name))
-        genbank_dir = os.path.join(genbank_blasts, gene_name[:-4]) # strips extension
-        # Check if each gene dir exists.
-        if not os.path.isdir(genbank_dir):
-            os.mkdir(genbank_dir)
-        blast_records = NCBIXML.parse(parse_me)
+        # Iterate over BLAST results from database.
         for blast_record in blast_records:
-            E_VALUE_THRESH = 0.04
+            E_VALUE_THRESH = 0.001
             for alignment in blast_record.alignments:
-                for hsp in alignment.hsps:
-                    if hsp.expect < E_VALUE_THRESH:
-                        blast_file = os.path.join(genbank_dir, '%s.xml' % alignment.title)
-                        try:
-                            genbank_output = open(blast_file)
-                            logger.debug('%s already BLASTed!', alignment.title)
-                        except:
-                            logger.info('Consulting NCBI for %s: %s', gene_name[:-4], hsp.sbjct)
-                            handle = NCBIWWW.qblast('blastn', 'nr', hsp.sbjct)
-                            handle_string = handle.read()
-                            genbank_output = open(blast_file, 'w')
-                            genbank_output.write(handle_string)
-                            genbank_output.close()
+                    for hsp in alignment.hsps:
+                        if hsp.expect < E_VALUE_THRESH:
+                            locus_filename = '%s_%s_Score_%s' % (gene_name, alignment.title, int(hsp.score))
+                            locus_filename = locus_filename.replace('/', '-')
+                            locus_filepath = os.path.join(reverse_folder, '%s.fa' % locus_filename)
+
+                            print 'Instantiating %s...' % locus_filename
+                            # Instantiate Locus object.
+                            locus = Locus(candidate, locus_filepath, locus_filename, hsp.score, hsp.expect, hsp.sbjct)
+
+                            #locus_file = open(locus_filepath)
+                            locus_output_filepath = os.path.join(reverse_results_folder, '%s' % locus_filename)
+                            try:
+                                blastfile = open('%s.xml' % locus_output_filepath)
+                                blastfile.close()
+                            except:
+                                reverse_args = {
+                                        'query': locus_filepath,
+                                        'db': 'human_protein.fa',
+                                        'out': '%s.xml' % locus_output_filepath,
+                                        'outfmt': 5,
+                                        }
+
+                                blast('blastp', reverse_args)
+
+                            locus.reverse_blast_output = '%s.xml' % locus_output_filepath
+
+                            locus.parse_blast()
+                            locus.process()
+                            print
+                            print candidate.ref, locus.description
+                            if locus.equivalent:
+                                candidate.loci.append(locus)
+                                print [gene.description for gene in candidate.loci]
+                            print
+
+
+                            n += 1
+
+        # Add to main dictionary.
+        genes[gene_name] = candidate
+
+    print_loci(genes)
 
     logger.info('Done, bye!')
 
