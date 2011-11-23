@@ -7,6 +7,8 @@ import os
 import pickle
 from Bio import Entrez, SeqIO
 from Bio.Blast import NCBIXML
+from Bio.Blast.Applications import NcbiblastnCommandline, NcbiblastpCommandline, NcbiblastxCommandline, NcbitblastnCommandline, NcbitblastxCommandline
+
 
 class Sequence(object):
     '''Represents a known sequence.
@@ -21,19 +23,27 @@ class Sequence(object):
     loci: list of loci with recurrency?.
     '''
     Entrez.email = 'organelas@gmail.com'
+    EVALUE_THRESH = 0.001
+
+    # Cache folder.
     cache_folder = 'seqs'
+    # Check if cache folder exists.
+    if not os.path.isdir(cache_folder):
+        os.mkdir(cache_folder)
+
     #TODO add __str__ to classes.
 
-    def __init__(self, filepath=None, ref=None):
+    def __init__(self, filepath=None, ref=None, database=None):
+        self.limit = 1
         self.loci = []
         self.gene_name = ''
+        self.database = database
         if filepath:
             self.filepath = filepath
-            self.parse_fasta(filepath)
-            self.get_gene_id()
+            self.parse_fasta(self.filepath)
+            self.set_gene_id()
+            self.set_gene_name()
         else:
-            if not os.path.isdir(self.cache_folder):
-                os.mkdir(self.cache_folder)
             cache_path = os.path.join(self.cache_folder, ref)
             try:
                 cache_file = open(cache_path, 'rb')
@@ -63,21 +73,75 @@ class Sequence(object):
         self.sequence = str(record.seq)
         self.gene_name = filepath.split('/')[-1][:-3]
 
-    def get_gene_id(self):
-        '''Get gene id from NCBI.'''
+    def set_gene_id(self):
+        '''Get and set gene id from NCBI.'''
+        #import pdb; pdb.set_trace()
+        #FIXME Not returning gene record?
         handle = Entrez.esearch(db='gene', term=self.ref)
         record = Entrez.read(handle)
         self.gene_id = record['IdList'][0]
+
+    def set_gene_name(self):
+        '''Get and set gene name from filepath.'''
+        filepath = os.path.basename(self.filepath)
+        self.gene_name = os.path.splitext(filepath)[0]
 
     def fetch(self, ref):
         '''Fetch data from NCBI.'''
         handle = Entrez.efetch(db='protein', id=ref, rettype='gb')
         record = SeqIO.read(handle, 'genbank')
         # Define attributes.
+        #FIXME See if this is ok!
         self.description = record.description
         self.ref = record.id
         self.sequence = str(record.seq)
-        self.get_gene_id()
+        self.set_gene_id()
+
+    def parse_blast(self):
+        '''Parse BLAST output file.'''
+        import pdb; pdb.set_trace()
+        blast_records = NCBIXML.parse(open(self.blast_output))
+        n = 0
+        # Iterate over BLAST results from database.
+        for blast_record in blast_records:
+            for alignment in blast_record.alignments:
+                for hsp in alignment.hsps:
+                    if n < self.limit:
+                        if hsp.expect < self.EVALUE_THRESH:
+
+                            print '\nInstantiating >> %s\n' % alignment.title
+                            locus_id = alignment.title.split()[0]
+                            # Instantiate Locus object.
+                            locus = Locus(locus_id, self, self.database, hsp.score, hsp.expect)
+
+                            #FIXME Sheck if this is exporting XML and if it is able to parse.
+                            try:
+                                blastfile = open(locus.reverse_blast_output)
+                                blastfile.close()
+                            except:
+                                reverse_args = {
+                                        'query': locus.filepath,
+                                        'db': 'human_protein.fa',
+                                        'out': locus.reverse_blast_output,
+                                        'outfmt': 5,
+                                        }
+                                if self.blast_type == 'tblastn':
+                                    blast('blastx', reverse_args)
+                                elif self.blast_type == 'blastp':
+                                    blast('blastp', reverse_args)
+
+                            #FIXME Check if reverse can be organized in folders by gene 
+                            # name.
+
+                            # Parse reverse BLAST output.
+                            locus.parse_blast()
+
+                            # If locus is reciprocal, add to loci list.
+                            if locus.reciprocal:
+                                self.loci.append(locus)
+                                #print [gene.description for gene in candidate.loci]
+                            n += 1
+
 
 class Locus(object):
     '''Represents a new sequence.
@@ -89,44 +153,124 @@ class Locus(object):
     evalue: from Candidate BLAST.
     reverse_blast_output: reverse BLAST to human protein db.
     '''
-    reverses = []
+    EVALUE_THRESH = 0.001
 
-    def __init__(self, candidate, filepath, description, score, evalue, sequence):
+    # Reverse BLAST folder.
+    reverse_folder = 'reverse'
+    # Folder with candidate-genes BLASTs.
+    reverse_results_folder = os.path.join(reverse_folder, 'results')
+
+    def __init__(self, id, candidate, database, score, evalue):
+        # Check if reverse folder exists.
+        if not os.path.isdir(self.reverse_folder):
+            os.mkdir(self.reverse_folder)
+        # Check if reverse results folder exists.
+        if not os.path.isdir(self.reverse_results_folder):
+            os.mkdir(self.reverse_results_folder)
+
+        self.reverses = []
+
+        self.reciprocal = False
+        self.rank = 0
+        self.id = id
         self.candidate = candidate
-        self.filepath = filepath
-        self.description = description
+        self.database = database
         self.score = int(score)
         self.evalue = evalue
-        self.sequence = sequence
-        self.equivalent = False
+
+        # Create filename before the rest.
+        self.set_filename()
+
+        self.reverse_gene_folder = os.path.join(self.reverse_folder, self.candidate.gene_name)
+        self.reverse_results_gene_folder = os.path.join(self.reverse_results_folder, self.candidate.gene_name)
+
+        if not os.path.isdir(self.reverse_gene_folder):
+            os.mkdir(self.reverse_gene_folder)
+        if not os.path.isdir(self.reverse_results_gene_folder):
+            os.mkdir(self.reverse_results_gene_folder)
+
+        self.set_filepath()
+        self.set_blast_output()
+        self.set_sequence()
+
+
 
         self.write_fasta()
+
+    def set_sequence(self):
+        '''Get and set sequence from database.'''
+        parsed = SeqIO.parse(self.database, 'fasta')
+        for locus in parsed:
+            if locus.id == self.id:
+                self.sequence = str(locus.seq)
+        if not self.sequence:
+            print 'SEQUENCE NOT SET! Check the IDs.'
+
+    def set_blast_output(self):
+        '''Build filepath for reverse blast output.'''
+        blast_output = os.path.join(self.reverse_results_gene_folder, '%s.xml' % self.filename)
+        self.reverse_blast_output = blast_output
+
+    def set_filepath(self):
+        '''Build filepath from folder and filename.'''
+        locus_filepath = os.path.join(self.reverse_gene_folder, '%s.fa' % self.filename)
+        self.filepath = locus_filepath
+
+    def set_filename(self):
+        '''Extract filename from ID.'''
+        filename = '_'.join(self.id.split('_')[:2])
+        self.filename = filename
 
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
         locus_file = open(self.filepath, 'w')
-        locus_file.write('>%s\n%s' % (self.description, self.sequence))
+        locus_file.write('>%s\n%s' % (self.id, self.sequence))
         locus_file.close()
 
     def parse_blast(self):
         '''Parse reverse BLAST.'''
         blast_records = NCBIXML.parse(open(self.reverse_blast_output))
         for blast_record in blast_records:
-            E_VALUE_THRESH = 0.001
             for alignment in blast_record.alignments:
                 for hsp in alignment.hsps:
-                    if hsp.expect < E_VALUE_THRESH:
+                    if hsp.expect < self.EVALUE_THRESH:
                         ref = alignment.title.split('|')[1]
                         self.reverses.append(Sequence(ref=ref))
+        # Process results.
+        self.process()
 
     def process(self):
-        '''Define if locus is equivalent to the gene.
+        '''Define if locus is reciprocal to the gene.
 
         True: if it matches the same gene_id and ref from the candidate gene.
         '''
-        #XXX Will this rule out high scoring sequences?
+        #TODO Handle when gene_id is None?
+        rank = 0
         for sequence in self.reverses:
+            rank += 1
             if sequence.gene_id == self.candidate.gene_id:
                 if sequence.ref == self.candidate.ref:
-                    self.equivalent = True
+                    self.reciprocal = True
+                    self.rank = rank
                     break
+
+
+def blast(blast_type, arguments):
+    '''Execute BLAST command.'''
+    # Instantiate the BLAST command.
+    if blast_type == 'blastn':
+        cline = NcbiblastnCommandline(**arguments)
+    elif blast_type == 'blastp':
+        cline = NcbiblastpCommandline(**arguments)
+    elif blast_type == 'blastx':
+        cline = NcbiblastxCommandline(**arguments)
+    elif blast_type == 'tblastn':
+        cline = NcbitblastnCommandline(**arguments)
+    elif blast_type == 'tblastx':
+        cline = NcbitblastnCommandline(**arguments)
+
+    # Execute BLAST.
+    stdout, stderr = cline()
+    print '%s BLASTed!' % arguments['query']
+
+

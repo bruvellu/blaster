@@ -34,8 +34,7 @@ import sys
 from Bio import SeqIO
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
-from Bio.Blast.Applications import NcbiblastnCommandline, NcbiblastpCommandline, NcbiblastxCommandline, NcbitblastnCommandline, NcbitblastxCommandline
-from liblast import Sequence, Locus
+from liblast import Sequence, Locus, blast
 
 def prepare(candidates, candidates_folder):
     '''Check candidate gene files (convert to FASTA, if needed).'''
@@ -57,34 +56,6 @@ def prepare(candidates, candidates_folder):
         else:
             logger.debug('File type not supported: %s', gene)
 
-def print_loci(genes):
-    '''Print loci equivalent to candidate genes.'''
-    print 'Creating final file...'
-    final_file = open('results.fa', 'w')
-    for name, gene in genes.iteritems():
-        for seq in gene.loci:
-            final_file.write('>%s\n' % seq.description)
-            final_file.write('%s\n\n' % seq.sequence)
-    final_file.close()
-
-def blast(blast_type, arguments):
-    '''Execute BLAST command.'''
-    # Instantiate the BLAST command.
-    if blast_type == 'blastn':
-        cline = NcbiblastnCommandline(**arguments)
-    elif blast_type == 'blastp':
-        cline = NcbiblastpCommandline(**arguments)
-    elif blast_type == 'blastx':
-        cline = NcbiblastxCommandline(**arguments)
-    elif blast_type == 'tblastn':
-        cline = NcbitblastnCommandline(**arguments)
-    elif blast_type == 'tblastx':
-        cline = NcbitblastnCommandline(**arguments)
-
-    # Execute BLAST.
-    stdout, stderr = cline()
-    logger.info('%s BLASTed!', arguments['query'])
-
 def usage():
     '''Explanation for arguments.'''
 
@@ -97,32 +68,28 @@ def usage():
     print
 
 def main(argv):
-    # Folder with candidate-genes.
-    candidates_folder = 'candidates'
-    # Folder with candidate-genes BLASTs.
-    results_folder = os.path.join(candidates_folder, 'results')
-
-    # Reverse BLAST folder
-    reverse_folder = 'reverse'
-    # Folder with candidate-genes BLASTs.
-    reverse_results_folder = os.path.join(reverse_folder, 'results')
-
-    # Database name.
-    database = None
-
-    # BLAST command.
-    blast_type = None
 
     # Available BLASTs.
     blast_types = ['blastn', 'blastp', 'blastx', 'tblastn', 'tblastx']
+    # Database name.
+    database = None
+    # BLAST command.
+    blast_type = None
+
+    # Folder with candidate-genes.
+    candidates_folder = 'candidates'
+    # Folder with candidate-genes BLASTs.
+    candidates_results_folder = os.path.join(candidates_folder, 'results')
+
+    # Folder with final results.
+    final_results_folder = 'final_results'
 
     # Parse arguments.
     try:
-        opts, args = getopt.getopt(argv, 'hc:d:r:b:', [
+        opts, args = getopt.getopt(argv, 'hc:d:b:', [
             'help',
             'candidates=',
             'database=',
-            'reverse=',
             'blast=',
             ])
     except getopt.GetoptError:
@@ -144,7 +111,8 @@ def main(argv):
             blast_type = arg
 
     # Print summary of arguments.
-    logger.debug('Arguments: candidates=%s, database=%s', candidates_folder, database)
+    logger.debug('Arguments: candidates=%s, database=%s, blast=%s', candidates_folder, database, blast_type)
+
 
     # Check if BLAST command was specified.
     if not blast_type:
@@ -157,14 +125,11 @@ def main(argv):
             sys.exit(2)
 
     # Check if results exists.
-    if not os.path.isdir(results_folder):
-        os.mkdir(results_folder)
-    # Check if results exists.
-    if not os.path.isdir(reverse_folder):
-        os.mkdir(reverse_folder)
-    # Check if results exists.
-    if not os.path.isdir(reverse_results_folder):
-        os.mkdir(reverse_results_folder)
+    if not os.path.isdir(candidates_results_folder):
+        os.mkdir(candidates_results_folder)
+    # Check if final results exists.
+    if not os.path.isdir(final_results_folder):
+        os.mkdir(final_results_folder)
 
     # Get candidate genes.
     try:
@@ -180,92 +145,57 @@ def main(argv):
     # Only read FASTA files.
     candidates = [file for file in candidates if file.endswith('.fa')]
 
+    # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
             database)
 
-    # Main objects to store genes.
+
+    # Main object to store genes.
     genes = {}
 
     # BLAST each gene against local database.
     for genefile in candidates:
-        print genefile
-        gene_name = genefile[:-3]
+        print
+        logger.info('BLASTing %s against %s...', genefile, database)
+
+        # Instantiate Sequence.
         gene_filepath = os.path.join(candidates_folder, genefile)
-        output_filepath = os.path.join(results_folder, gene_name + '.xml')
+        candidate = Sequence(filepath=gene_filepath, database=database)
+
+        # Define variables.
+        output_filepath = os.path.join(candidates_results_folder, '%s.xml' % candidate.gene_name)
+        candidate.blast_output = output_filepath
 
         # Only BLAST if needed.
         try:
-            blastfile = open(output_filepath)
+            blastfile = open(candidate.blast_output)
             blastfile.close()
         except:
             arguments = {
-                'query': gene_filepath,
+                'query': candidate.filepath,
                 'db': database,
-                'out': output_filepath,
+                'out': candidate.blast_output,
                 'outfmt': 5, # Export in XML
                 }
             # Execute BLAST command.
             blast(blast_type, arguments)
 
-        # Instantiate Sequence.
-        candidate = Sequence(filepath=gene_filepath)
-        candidate.gene_name = gene_name
-        candidate.blast_output = output_filepath
-
-        print 'Parsing xml...'
-        # BLAST records.
-        blast_records = NCBIXML.parse(open(candidate.blast_output))
-
-        # Limit for the first locus.
-        n = 0
-
-        # Iterate over BLAST results from database.
-        for blast_record in blast_records:
-            E_VALUE_THRESH = 0.001
-            for alignment in blast_record.alignments:
-                    for hsp in alignment.hsps:
-                        if hsp.expect < E_VALUE_THRESH:
-                            locus_filename = '%s_%s_Score_%s' % (gene_name, alignment.title, int(hsp.score))
-                            locus_filename = locus_filename.replace('/', '-')
-                            locus_filepath = os.path.join(reverse_folder, '%s.fa' % locus_filename)
-
-                            print 'Instantiating %s...' % locus_filename
-                            # Instantiate Locus object.
-                            locus = Locus(candidate, locus_filepath, locus_filename, hsp.score, hsp.expect, hsp.sbjct)
-
-                            #locus_file = open(locus_filepath)
-                            locus_output_filepath = os.path.join(reverse_results_folder, '%s' % locus_filename)
-                            try:
-                                blastfile = open('%s.xml' % locus_output_filepath)
-                                blastfile.close()
-                            except:
-                                reverse_args = {
-                                        'query': locus_filepath,
-                                        'db': 'human_protein.fa',
-                                        'out': '%s.xml' % locus_output_filepath,
-                                        'outfmt': 5,
-                                        }
-
-                                blast('blastp', reverse_args)
-
-                            locus.reverse_blast_output = '%s.xml' % locus_output_filepath
-
-                            locus.parse_blast()
-                            locus.process()
-                            print
-                            print candidate.ref, locus.description
-                            if locus.equivalent:
-                                candidate.loci.append(locus)
-                                print [gene.description for gene in candidate.loci]
-                            print
-
-
-                            n += 1
+        logger.info('Parsing XML...')
+        candidate.blast_type = blast_type
+        candidate.parse_blast()
 
         # Add to main dictionary.
-        genes[gene_name] = candidate
+        genes[candidate.gene_name] = candidate
 
-    print_loci(genes)
+
+    # Print loci equivalent to candidate genes.
+    logger.info('Creating files at %s...', final_results_folder)
+    for name, gene in genes.iteritems():
+        final_file = open(os.path.join(final_results_folder, '%s.fa' % name), 'w')
+        for seq in gene.loci:
+            final_file.write('>%s\n' % seq.id)
+            final_file.write('%s\n\n' % seq.sequence)
+        final_file.close()
 
     logger.info('Done, bye!')
 
