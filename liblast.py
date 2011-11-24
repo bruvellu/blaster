@@ -34,8 +34,8 @@ class Sequence(object):
     #TODO add __str__ to classes.
 
     def __init__(self, filepath=None, ref=None, database=None):
-        self.limit = 3
-        self.loci = []
+        self.limit = 1
+        self.loci = {}
         self.gene_name = ''
         self.database = database
         if filepath:
@@ -114,35 +114,16 @@ class Sequence(object):
 
                             print '\nInstantiating >> %s\n' % alignment.title
                             locus_id = alignment.title.split()[0]
-                            # Instantiate Locus object.
-                            locus = Locus(locus_id, self, self.database, hsp.score, hsp.expect)
 
-                            #FIXME Sheck if this is exporting XML and if it is able to parse.
-                            try:
-                                blastfile = open(locus.reverse_blast_output)
-                                blastfile.close()
-                            except:
-                                reverse_args = {
-                                        'query': locus.filepath,
-                                        'db': 'human_protein.fa',
-                                        'out': locus.reverse_blast_output,
-                                        'outfmt': 5,
+                            # Save locus to dictionary if key does not exists.
+                            #NOTE This means that only the first hsp found in the locus is added,
+                            # while the other ones are skipped
+                            if not locus_id in self.loci.keys():
+                                self.loci[locus_id] = {
+                                        'score': hsp.score,
+                                        'evalue': hsp.expect
                                         }
-                                if self.blast_type == 'tblastn':
-                                    blast('blastx', reverse_args)
-                                elif self.blast_type == 'blastp':
-                                    blast('blastp', reverse_args)
 
-                            #FIXME Check if reverse can be organized in folders by gene 
-                            # name.
-
-                            # Parse reverse BLAST output.
-                            locus.parse_blast()
-
-                            # If locus is reciprocal, add to loci list.
-                            if locus.reciprocal:
-                                self.loci.append(locus)
-                                #print [gene.description for gene in candidate.loci]
                             n += 1
 
 
@@ -161,38 +142,41 @@ class Locus(object):
     # Reverse BLAST folder.
     reverse_folder = 'reverse'
 
-    def __init__(self, id, candidate, database, score, evalue):
+    # Linkback to candidates.
+    candidates = {}
+
+    def __init__(self, id, candidate, database):
         self.reciprocals = []
+
+        self.update_candidates(candidate)
 
         self.reciprocal = False
         self.rank = 0
         self.id = id
-        self.candidate = candidate
         self.database = database
-        self.score = int(score)
-        self.evalue = evalue
 
         # Create filename before the rest.
         self.set_filename()
 
-        self.reverse_gene_folder = os.path.join(self.reverse_folder, self.candidate.gene_name)
-        self.reverse_gene_results_folder = os.path.join(self.reverse_gene_folder, 'results')
+        self.reverse_results_folder = os.path.join(self.reverse_folder, 'results')
 
         # Check if reverse folder exists.
         if not os.path.isdir(self.reverse_folder):
             os.mkdir(self.reverse_folder)
-        # Check if reverse gene folder exists.
-        if not os.path.isdir(self.reverse_gene_folder):
-            os.mkdir(self.reverse_gene_folder)
         # Check if reverse results folder exists.
-        if not os.path.isdir(self.reverse_gene_results_folder):
-            os.mkdir(self.reverse_gene_results_folder)
+        if not os.path.isdir(self.reverse_results_folder):
+            os.mkdir(self.reverse_results_folder)
 
         self.set_filepath()
         self.set_blast_output()
         self.set_sequence()
 
         self.write_fasta()
+
+    def update_candidates(self, candidate):
+        '''Update list of linked candidate genes.'''
+        if not candidate.gene_name in self.candidates.keys():
+            self.candidates[candidate.gene_name] = candidate
 
     def set_sequence(self):
         '''Get and set sequence from database.'''
@@ -205,12 +189,12 @@ class Locus(object):
 
     def set_blast_output(self):
         '''Build filepath for reverse blast output.'''
-        blast_output = os.path.join(self.reverse_gene_results_folder, '%s.xml' % self.filename)
+        blast_output = os.path.join(self.reverse_results_folder, '%s.xml' % self.filename)
         self.reverse_blast_output = blast_output
 
     def set_filepath(self):
         '''Build filepath from folder and filename.'''
-        locus_filepath = os.path.join(self.reverse_gene_folder, '%s.fa' % self.filename)
+        locus_filepath = os.path.join(self.reverse_folder, '%s.fa' % self.filename)
         self.filepath = locus_filepath
 
     def set_filename(self):
@@ -252,13 +236,13 @@ class Locus(object):
         print '\nrank\tgene\tref\t\thit'
         for sequence in self.reciprocals:
             rank += 1
-            if sequence.gene_id == self.candidate.gene_id:
-                if sequence.ref == self.candidate.ref:
-                    print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '+')
-                    print '\nFound reciprocal! Gene: %s, Ref: %s\n' % (sequence.gene_id, sequence.ref)
-                    self.reciprocal = True
-                    self.rank = rank
-                    break
+            #if sequence.gene_id == self.candidate.gene_id:
+            #    if sequence.ref == self.candidate.ref:
+            #        print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '+')
+            #        print '\nFound reciprocal! Gene: %s, Ref: %s\n' % (sequence.gene_id, sequence.ref)
+            #        self.reciprocal = True
+            #        self.rank = rank
+            #        break
             print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '-')
 
 

@@ -151,8 +151,9 @@ def main(argv):
             database)
 
 
-    # Main object to store genes.
+    # Main object to store genes and loci.
     genes = {}
+    loci = {}
 
     # BLAST each gene against local database.
     for genefile in candidates:
@@ -186,8 +187,39 @@ def main(argv):
                 candidate.gene_name, candidate.gene_id,
                 candidate.ref, candidate.description
                 )
-        candidate.blast_type = blast_type
         candidate.parse_blast()
+
+        #DO LOCUS STUFF
+        for locus_id in candidate.loci.keys():
+            # If locus was already specified.
+            if locus_id in loci.keys():
+                locus = loci[locus_id]
+                locus.update_candidates(candidate)
+            else:
+                # Instantiate Locus object.
+                locus = Locus(locus_id, candidate, database)
+
+                # Reciprocal BLAST querying locus sequence agains human database.
+                try:
+                    blastfile = open(locus.reverse_blast_output)
+                    blastfile.close()
+                except:
+                    reverse_args = {
+                            'query': locus.filepath,
+                            'db': 'human_protein.fa',
+                            'out': locus.reverse_blast_output,
+                            'outfmt': 5,
+                            }
+                    if blast_type == 'tblastn':
+                        blast('blastx', reverse_args)
+                    elif blast_type == 'blastp':
+                        blast('blastp', reverse_args)
+
+                # Parse reverse BLAST output.
+                locus.parse_blast()
+
+                # Add locus to main list.
+                loci[locus_id] = locus
 
         # Add to main dictionary.
         genes[candidate.gene_name] = candidate
@@ -195,12 +227,20 @@ def main(argv):
 
     # Print loci equivalent to candidate genes.
     logger.info('Creating files at %s...', final_results_folder)
-    for name, gene in genes.iteritems():
-        final_file = open(os.path.join(final_results_folder, '%s.fa' % name), 'w')
-        for seq in gene.loci:
-            final_file.write('>%s\n' % seq.id)
-            final_file.write('%s\n\n' % seq.sequence)
-        final_file.close()
+    #for name, gene in genes.iteritems():
+    #    final_file = open(os.path.join(final_results_folder, '%s.fa' % name), 'w')
+    #    for seq in gene.loci:
+    #        final_file.write('>%s\n' % seq.id)
+    #        final_file.write('%s\n\n' % seq.sequence)
+    #    final_file.close()
+
+    print
+    print len(loci)
+    print
+    for locus_id, locus in loci.iteritems():
+        print locus_id
+        for sequence in locus.reciprocals:
+            print '\t%s, %s, %s' % (sequence.gene_name, sequence.gene_id, sequence.ref)
 
     logger.info('Done, bye!')
 
