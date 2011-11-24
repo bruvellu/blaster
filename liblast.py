@@ -34,7 +34,7 @@ class Sequence(object):
     #TODO add __str__ to classes.
 
     def __init__(self, filepath=None, ref=None, database=None):
-        self.limit = 1
+        self.limit = 3
         self.loci = []
         self.gene_name = ''
         self.database = database
@@ -112,7 +112,7 @@ class Sequence(object):
                     if n < self.limit:
                         if hsp.expect < self.EVALUE_THRESH:
 
-                            print 'Instantiating >> %s\n' % alignment.title
+                            print '\nInstantiating >> %s\n' % alignment.title
                             locus_id = alignment.title.split()[0]
                             # Instantiate Locus object.
                             locus = Locus(locus_id, self, self.database, hsp.score, hsp.expect)
@@ -220,6 +220,7 @@ class Locus(object):
 
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
+        #TODO Insert line breaks for sequences.
         locus_file = open(self.filepath, 'w')
         locus_file.write('>%s\n%s' % (self.id, self.sequence))
         locus_file.close()
@@ -254,7 +255,7 @@ class Locus(object):
             if sequence.gene_id == self.candidate.gene_id:
                 if sequence.ref == self.candidate.ref:
                     print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '+')
-                    print '\nFound reciprocal! Gene: %s, Ref: %s' % (sequence.gene_id, sequence.ref)
+                    print '\nFound reciprocal! Gene: %s, Ref: %s\n' % (sequence.gene_id, sequence.ref)
                     self.reciprocal = True
                     self.rank = rank
                     break

@@ -61,6 +61,7 @@ def usage():
 
     print
     print 'USAGE: ./blaster.py -d Membranipora.fasta -b tblastn'
+    print
     print '  -c, --candidates \n\tFolder with `.fasta` or `.gb` files of candidate genes. One gene per file.'
     print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
     print '  -r, --results \n\tFolder where BLAST results will be written.'
@@ -181,7 +182,7 @@ def main(argv):
             blast(blast_type, arguments)
 
         logger.info('Parsing XML...')
-        print '\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
+        print '\n\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
                 candidate.gene_name, candidate.gene_id,
                 candidate.ref, candidate.description
                 )
