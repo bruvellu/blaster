@@ -181,6 +181,10 @@ def main(argv):
             blast(blast_type, arguments)
 
         logger.info('Parsing XML...')
+        print '\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
+                candidate.gene_name, candidate.gene_id,
+                candidate.ref, candidate.description
+                )
         candidate.blast_type = blast_type
         candidate.parse_blast()
 
