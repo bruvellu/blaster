@@ -5,6 +5,7 @@
 
 import os
 import pickle
+import re
 from Bio import Entrez, SeqIO
 from Bio.Blast import NCBIXML
 from Bio.Blast.Applications import NcbiblastnCommandline, NcbiblastpCommandline, NcbiblastxCommandline, NcbitblastnCommandline, NcbitblastxCommandline
@@ -34,7 +35,7 @@ class Sequence(object):
     #TODO add __str__ to classes.
 
     def __init__(self, filepath=None, ref=None, database=None):
-        self.limit = 1
+        self.limit = 3
         self.loci = {}
         self.gene_name = ''
         self.database = database
@@ -94,12 +95,25 @@ class Sequence(object):
         '''Fetch data from NCBI.'''
         handle = Entrez.efetch(db='protein', id=ref, rettype='gb')
         record = SeqIO.read(handle, 'genbank')
+        #TODO maybe just save file locally...
+        handle = Entrez.efetch(db='protein', id=ref, rettype='gb')
+        handle_string = handle.read()
         # Define attributes.
         #FIXME See if this is ok!
         self.description = record.description
         self.ref = record.id
         self.sequence = str(record.seq)
         self.set_gene_id()
+        # Find gene name by regular expression.
+        try:
+            pattern = re.compile(r'gene="(.+)"')
+            reobj = pattern.search(handle_string)
+            self.gene_name = reobj.group(1)
+        except:
+            self.gene_name = 'Not found'
+        # To extract gene description, name and other info from xml parsing.
+        #>>> record['Bioseq-set_seq-set'][0]['Seq-entry_set']['Bioseq-set']['Bioseq-set_seq-set'][0]['Seq-entry_seq']['Bioseq']['Bioseq_annot'][0]['Seq-annot_data']['Seq-annot_data_ftable'][1]['Seq-feat_data']['SeqFeatData']['SeqFeatData_gene']['Gene-ref']
+        #>>> {u'Gene-ref_desc': 'DEAD (Asp-Glu-Ala-Asp) box polypeptide 4', u'Gene-ref_syn': ['VASA'], u'Gene-ref_locus': 'DDX4'}
 
     def parse_blast(self):
         '''Parse BLAST output file.'''
@@ -220,9 +234,12 @@ class Locus(object):
                         #XXX Better parse ref!
                         ref = alignment.title.split('|')[3]
                         #print 'Creating object: %s' % ref
-                        self.reciprocals.append(Sequence(ref=ref))
+                        sequence = Sequence(ref=ref)
+                        sequence.evalue = hsp.expect
+                        sequence.score = hsp.score
+                        self.reciprocals.append(sequence)
         # Process results.
-        self.process()
+        #self.process()
 
     def process(self):
         '''Define if locus is reciprocal to the gene.
@@ -235,6 +252,13 @@ class Locus(object):
         rank = 0
         print '\nrank\tgene\tref\t\thit'
         for sequence in self.reciprocals:
+            if sequence.gene_id == current_gene_id:
+                #DOSTUFF
+                continue
+            else:
+                break
+            current_gene_id = sequence.gene_id
+
             rank += 1
             #if sequence.gene_id == self.candidate.gene_id:
             #    if sequence.ref == self.candidate.ref:

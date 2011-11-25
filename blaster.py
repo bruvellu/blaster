@@ -234,13 +234,26 @@ def main(argv):
     #        final_file.write('%s\n\n' % seq.sequence)
     #    final_file.close()
 
-    print
-    print len(loci)
-    print
     for locus_id, locus in loci.iteritems():
+        print
         print locus_id
+        try:
+            first = locus.reciprocals[0]
+        except:
+            print '\tNo reciprocals.'
+        current_gene_id = first.gene_id
+        n_genes = 0
         for sequence in locus.reciprocals:
-            print '\t%s, %s, %s' % (sequence.gene_name, sequence.gene_id, sequence.ref)
+            if sequence.gene_id == current_gene_id or n_genes < 5:
+                print '\t%s, %s, %s, %s' % (
+                        sequence.gene_name, sequence.gene_id,
+                        sequence.ref, sequence.evalue
+                        )
+            else:
+                break
+            current_gene_id = sequence.gene_id
+            n_genes += 1
+    print
 
     logger.info('Done, bye!')
 
