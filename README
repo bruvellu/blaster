@@ -2,7 +2,7 @@
 
 This script takes a series of candidate genes, BLAST them against a local 
 database (eg, transcriptome from an organism) to extract relevant sequences, 
-BLAST these sequences against GenBank, and retrieve results for analysis.
+BLAST these sequences against the reciprocal database from candidate genes (eg, human protein), retrieve and print the results for analysis.
 
 ## Arguments
 
@@ -13,23 +13,32 @@ One gene per file.
 `FASTA` format it will be converted to a database `BLAST+` can understand using
 `makeblastdb` command, example: `makeblastdb -in bugula.fasta -parse_seqids -dbtype nucl`
 
-`-b, --local-blasts` -- Folder where local BLAST results will be written.
+`-b, -blast` -- Folder where local BLAST results will be written.
 
-`-g, --genbank-blasts` -- Folder where GenBank BLAST results will be written.
+## Usage
 
-TODO: parameters for BLAST analysis.
+1. Convert databases to be BLASTable.
 
-## Algorithm
+    makeblastdb -in membranipora.fa -parse_seqids -dbtype nucl
+    makeblastdb -in human_protein.fa -parse_seqids -dbtype prot
 
-- Check the local database and convert if needed.
+2. Copy fasta files with 1 gene sequence per file into the `candidates` folder.
 
-- Read folder with candidate genes and standardize file formats (ie, convert 
-  `.fasta` files to `.gb`).
+3. Run the BLASTer command.
 
-- Generate list of candidate genes.
+    python blaster.py -d Membranipora.fasta -b tblastn
 
-- Call BLASTn command for each candidate.
+## Internals
 
-- Trim BLAST results.
+1. Each candidate is BLASTed against the local database using the specified BLAST program.
 
-- BLAST results agains GenBank.
+2. Best 3 loci hits are copied to `reverse` folder as fasta files.
+
+3. Each locus is BLASTed against the reciprocal database to check if it returns the same gene.
+
+4. Sequences from the best 5 genes are printed in the main output file.
+
+
+## Default values
+
+EVALUE_THRESH = 0.001
