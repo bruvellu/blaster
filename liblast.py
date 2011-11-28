@@ -35,7 +35,8 @@ class Sequence(object):
     #TODO add __str__ to classes.
 
     def __init__(self, filepath=None, ref=None, database=None):
-        self.limit = 3
+        #TODO Make limit a variable variable.
+        self.limit = 1
         self.loci = {}
         self.gene_name = ''
         self.database = database
@@ -126,7 +127,7 @@ class Sequence(object):
                     if n < self.limit:
                         if hsp.expect < self.EVALUE_THRESH:
 
-                            print '\nInstantiating >> %s\n' % alignment.title
+                            print 'Instantiating >> %s' % alignment.title
                             locus_id = alignment.title.split()[0]
 
                             # Save locus to dictionary if key does not exists.
@@ -156,10 +157,10 @@ class Locus(object):
     # Reverse BLAST folder.
     reverse_folder = 'reverse'
 
-    # Linkback to candidates.
-    candidates = {}
-
     def __init__(self, id, candidate, database):
+        # Linkback to candidates.
+        self.candidates = {}
+
         self.reciprocals = []
 
         self.update_candidates(candidate)

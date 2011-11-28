@@ -64,9 +64,11 @@ def usage():
     print
     print '  -c, --candidates \n\tFolder with `.fasta` or `.gb` files of candidate genes. One gene per file.'
     print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
-    print '  -r, --results \n\tFolder where BLAST results will be written.'
     print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
     print
+
+    #TODO Ability to specify limit for candidate blast results to be analysed.
+    #TODO Choose evalue threshold.
 
 def main(argv):
 
@@ -183,7 +185,7 @@ def main(argv):
             blast(blast_type, arguments)
 
         logger.info('Parsing XML...')
-        print '\n\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
+        print '\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
                 candidate.gene_name, candidate.gene_id,
                 candidate.ref, candidate.description
                 )
@@ -234,26 +236,43 @@ def main(argv):
     #        final_file.write('%s\n\n' % seq.sequence)
     #    final_file.close()
 
+    output_file = open('results.txt', 'w')
+
     for locus_id, locus in loci.iteritems():
         print
-        print locus_id
+        print locus_id, locus.candidates.keys()
+        output_file.write('%s\t\t(candidates: %s)\n\n' % (locus_id, 
+            ', '.join(locus.candidates.keys())))
         try:
             first = locus.reciprocals[0]
         except:
             print '\tNo reciprocals.'
         current_gene_id = first.gene_id
         n_genes = 0
+        output_file.write('\tgene\t\tid\t\taccession\t\te-value\n')
         for sequence in locus.reciprocals:
+            # Limits to 5 most similar genes.
             if sequence.gene_id == current_gene_id or n_genes < 5:
                 print '\t%s, %s, %s, %s' % (
                         sequence.gene_name, sequence.gene_id,
                         sequence.ref, sequence.evalue
                         )
+
+                output_file.write('\t%s\t\t%s\t\t%s\t\t%.2e' % (
+                        sequence.gene_name, sequence.gene_id,
+                        sequence.ref, sequence.evalue
+                        ))
+                accession_numbers = [seq.ref for seq in locus.candidates.values()]
+                if sequence.ref in accession_numbers:
+                    output_file.write(' <<')
+                output_file.write('\n')
             else:
                 break
             current_gene_id = sequence.gene_id
             n_genes += 1
+        output_file.write('\n\n')
     print
+    output_file.close()
 
     logger.info('Done, bye!')
 
