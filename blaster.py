@@ -32,6 +32,8 @@ import subprocess
 import sys
 
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
 from liblast import Sequence, Locus, blast
@@ -236,9 +238,12 @@ def main(argv):
     #        final_file.write('%s\n\n' % seq.sequence)
     #    final_file.close()
 
+    fasta_loci = []
     output_file = open('results.txt', 'w')
 
     for locus_id, locus in loci.iteritems():
+        fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, 
+            description='related to: %s' % ', '.join(locus.candidates.keys())))
         print
         print locus_id, locus.candidates.keys()
         output_file.write('%s\t\t(candidates: %s)\n\n' % (locus_id, 
@@ -274,6 +279,9 @@ def main(argv):
     print
     output_file.close()
 
+    wrote_fasta = SeqIO.write(fasta_loci, 'results.fa', 'fasta')
+
+    logger.info('%d records written to results.fa', wrote_fasta)
     logger.info('Done, bye!')
 
 

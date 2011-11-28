@@ -36,7 +36,7 @@ class Sequence(object):
 
     def __init__(self, filepath=None, ref=None, database=None):
         #TODO Make limit a variable variable.
-        self.limit = 1
+        self.limit = 3
         self.loci = {}
         self.gene_name = ''
         self.database = database
