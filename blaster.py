@@ -111,7 +111,7 @@ def main(argv):
         elif opt in ('-c', '--candidates'):
             candidates_folder = arg
         elif opt in ('-d', '--database'):
-            database = arg
+            database = os.path.abspath(arg)
         elif opt in ('-b', '--blast'):
             blast_type = arg
 
@@ -203,15 +203,16 @@ def main(argv):
                 # Instantiate Locus object.
                 locus = Locus(locus_id, candidate, database)
 
-                # Reciprocal BLAST querying locus sequence agains human database.
+                # Reciprocal BLAST querying locus sequence against human database.
                 try:
                     blastfile = open(locus.reverse_blast_output)
                     blastfile.close()
                 except:
+                    #XXX Find a better way to overcome problem when path has a "|".
                     reverse_args = {
-                            'query': locus.filepath,
-                            'db': 'human_protein.fa',
-                            'out': locus.reverse_blast_output,
+                            'query': locus.filepath.replace('|', '\|'),
+                            'db': '/home/nelas/Biologia/Doutorado/genomic_databases/human_protein.fa',
+                            'out': locus.reverse_blast_output.replace('|', '\|'),
                             'outfmt': 5,
                             }
                     if blast_type == 'tblastn':
