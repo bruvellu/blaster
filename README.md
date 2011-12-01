@@ -4,14 +4,18 @@ This script takes a series of candidate genes, BLAST them against a local
 database (eg, transcriptome from an organism) to extract relevant sequences, 
 BLAST these sequences against the reciprocal database from candidate genes (eg, human protein), retrieve and print the results for analysis.
 
-## Arguments
+## Installation
 
-`-c, --candidates` -- Folder with `.fa` or `.gb` files of candidate genes. 
-One gene per file.
+1. Install dependencies.
 
-`-d, --database` -- Local database with new data (eg, transcriptome).
+    - Python 2.7 (not Python 3)
+    - Biopython 1.56
+    - BLAST+ 2.2.25
 
-`-b, -blast` -- Folder where local BLAST results will be written.
+2. Copy the `blaster.py` to a new folder where it will run.
+
+3. Make sure you know where the local and reciprocal databases are (or copy 
+   them to the folder).
 
 ## Usage
 
@@ -27,6 +31,15 @@ One gene per file.
     python blaster.py -d membranipora.fa -b tblastn
 
 4. Results (loci) are printed to 2 files. `results.txt` shows each locus with reciprocal BLAST output and e-values. `results.fa` aggregates the loci and their sequences.
+
+## Arguments
+
+`-c, --candidates` -- Folder with `.fa` or `.gb` files of candidate genes. 
+One gene per file.
+
+`-d, --database` -- Local database with new data (eg, transcriptome).
+
+`-b, -blast` -- Folder where local BLAST results will be written.
 
 ## Internals
 
