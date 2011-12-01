@@ -86,9 +86,6 @@ def main(argv):
     # Folder with candidate-genes BLASTs.
     candidates_results_folder = os.path.join(candidates_folder, 'results')
 
-    # Folder with final results.
-    final_results_folder = 'final_results'
-
     # Parse arguments.
     try:
         opts, args = getopt.getopt(argv, 'hc:d:b:', [
@@ -132,9 +129,6 @@ def main(argv):
     # Check if results exists.
     if not os.path.isdir(candidates_results_folder):
         os.mkdir(candidates_results_folder)
-    # Check if final results exists.
-    if not os.path.isdir(final_results_folder):
-        os.mkdir(final_results_folder)
 
     # Get candidate genes.
     try:
@@ -231,17 +225,12 @@ def main(argv):
 
 
     # Print loci equivalent to candidate genes.
-    logger.info('Creating files at %s...', final_results_folder)
-    #for name, gene in genes.iteritems():
-    #    final_file = open(os.path.join(final_results_folder, '%s.fa' % name), 'w')
-    #    for seq in gene.loci:
-    #        final_file.write('>%s\n' % seq.id)
-    #        final_file.write('%s\n\n' % seq.sequence)
-    #    final_file.close()
+    logger.info('Creating result files...')
 
     fasta_loci = []
     output_file = open('results.txt', 'w')
 
+    #TODO Print date and variables used to results.txt.
     for locus_id, locus in loci.iteritems():
         fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, 
             description='related to: %s' % ', '.join(locus.candidates.keys())))
