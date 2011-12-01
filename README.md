@@ -9,9 +9,7 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
 `-c, --candidates` -- Folder with `.fasta` or `.gb` files of candidate genes. 
 One gene per file.
 
-`-d, --database` -- Local database with new data (eg, transcriptome). If in 
-`FASTA` format it will be converted to a database `BLAST+` can understand using
-`makeblastdb` command, example: `makeblastdb -in bugula.fasta -parse_seqids -dbtype nucl`
+`-d, --database` -- Local database with new data (eg, transcriptome).
 
 `-b, -blast` -- Folder where local BLAST results will be written.
 
@@ -26,7 +24,7 @@ One gene per file.
 
 3. Run the BLASTer command (database could also be in another folder).
 
-    python blaster.py -d Membranipora.fasta -b tblastn
+    python blaster.py -d membranipora.fa -b tblastn
 
 4. Results (loci) are printed to 2 files. `results.txt` shows each locus with reciprocal BLAST output and e-values. `results.fa` aggregates the loci and their sequences.
 
@@ -43,3 +41,5 @@ One gene per file.
 ## Default values
 
 EVALUE_THRESH = 0.001
+LOCI_HITS = 3
+RECIPROCAL_GENES = 5
