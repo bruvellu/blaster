@@ -401,10 +401,6 @@ def main(argv):
             logger.info('Available BLAST commands: %s', ', '.join(blast_types))
             sys.exit(2)
 
-    # Check if results exists.
-    if not os.path.isdir(candidates_results_folder):
-        os.mkdir(candidates_results_folder)
-
     # Get candidate genes.
     try:
         candidates = os.listdir(candidates_folder)
@@ -412,12 +408,23 @@ def main(argv):
         logger.critical('Folder "%s" does not exist! Aborting...', candidates_folder)
         sys.exit(2)
 
+    # Issue error if there are no candidate genes.
+    if not candidates:
+        logger.critical('There are no candidate genes at %s folder! Aborting...', 
+                candidates_folder)
+        sys.exit(2)
+
+    # Check if results exists.
+    if not os.path.isdir(candidates_results_folder):
+        os.mkdir(candidates_results_folder)
+
     # Process candidate genes.
     prepare(candidates, candidates_folder)
     # Get proper genes, now.
     candidates = os.listdir(candidates_folder)
     # Only read FASTA files.
     candidates = [file for file in candidates if file.endswith('.fa')]
+    #TODO make it recognize more FASTA extensions.
 
     # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
