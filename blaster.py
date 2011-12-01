@@ -44,9 +44,9 @@ def prepare(candidates, candidates_folder):
             record = SeqIO.read(gene_filepath, 'genbank')
             # Create FASTA file.
             try:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'r')
+                fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'r')
             except IOError:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fasta', 'w')
+                fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
                 fasta_file.write(record.format('fasta'))
                 fasta_file.close()
         elif gene.endswith('.fa'):
@@ -60,7 +60,7 @@ def usage():
     print
     print 'USAGE: ./blaster.py -d Membranipora.fasta -b tblastn'
     print
-    print '  -c, --candidates \n\tFolder with `.fasta` or `.gb` files of candidate genes. One gene per file.'
+    print '  -c, --candidates \n\tFolder with `.fa` or `.gb` files of candidate genes. One gene per file.'
     print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
     print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
     print
@@ -143,7 +143,6 @@ def main(argv):
     # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
             database)
-
 
     # Main object to store genes and loci.
     genes = {}

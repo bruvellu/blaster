@@ -6,7 +6,7 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
 
 ## Arguments
 
-`-c, --candidates` -- Folder with `.fasta` or `.gb` files of candidate genes. 
+`-c, --candidates` -- Folder with `.fa` or `.gb` files of candidate genes. 
 One gene per file.
 
 `-d, --database` -- Local database with new data (eg, transcriptome).
