@@ -343,6 +343,7 @@ def usage():
     print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
     print
 
+    #TODO Omit the candidates folder option? Should not be needed.
     #TODO Ability to specify limit for candidate blast results to be analysed.
     #TODO Choose evalue threshold.
 
