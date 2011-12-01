@@ -273,8 +273,6 @@ class Locus(object):
         True: if it matches the same gene_id and ref from the candidate gene.
         '''
         #TODO Handle when gene_id is None?
-        #TODO import pdb; pdb.set_trace()
-        #TODO print to csv!
         rank = 0
         print '\nrank\tgene\tref\t\thit'
         for sequence in self.reciprocals:
