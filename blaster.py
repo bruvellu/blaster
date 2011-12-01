@@ -3,14 +3,6 @@
 
 '''BLASTing batch script.
 
-Algorithm:
-    - Take several genes of interest.
-    - BLAST them locally against a transcriptome assembly.
-    - Filter and process results to extract relevant sequences.
-
-Notes:
-    - Read files with sequences from a folder (FASTA format).
-
 Dependencies:
     - Python 2.7.1
     - Biopython 1.56
@@ -22,6 +14,10 @@ Configuration (Linux):
 
         PATH=$PATH:/home/nelas/Downloads/ncbi-blast-2.2.25+/bin
         export PATH
+
+See README file for details or execute the command for usage and arguments:
+
+    python blaster.py -h
 
 '''
 
