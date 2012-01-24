@@ -486,7 +486,7 @@ def main(argv):
                     #XXX Find a better way to overcome problem when path has a "|".
                     reverse_args = {
                             'query': locus.filepath.replace('|', '\|'),
-                            'db': '/home/nelas/Biologia/Doutorado/genomic_databases/human_protein.fa',
+                            'db': '/home/nelas/Biologia/Doutorado/databases/human_protein.fa',
                             'out': locus.reverse_blast_output.replace('|', '\|'),
                             'outfmt': 5,
                             }
