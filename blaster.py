@@ -354,7 +354,7 @@ def main(argv):
     # Database name.
     database = None
     # BLAST command.
-    blast_type = None
+    blast_type = 'tblastn'
 
     # Folder with candidate-genes.
     candidates_folder = 'candidates'
