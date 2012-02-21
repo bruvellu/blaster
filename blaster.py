@@ -549,7 +549,7 @@ def main(argv):
 
     #TODO Print date and variables used to results.txt.
     for locus_id, locus in loci.iteritems():
-        locus_description = '| frame: %s | related to: %s' % (locus.frame, ', '.join(locus.candidates.keys()))
+        locus_description = '| frame: %s | candidates: %s' % (locus.frame, ', '.join(locus.candidates.keys()))
         fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, description=locus_description))
         output_file.write('%s %s\n\n' % (locus_id, locus_description))
 
