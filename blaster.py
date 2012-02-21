@@ -119,17 +119,25 @@ class Sequence(object):
 
     def fetch(self, ref):
         '''Fetch data from NCBI.'''
-        handle = Entrez.efetch(db='protein', id=ref, rettype='gb')
-        record = SeqIO.read(handle, 'genbank')
-        #TODO maybe just save file locally...
-        handle = Entrez.efetch(db='protein', id=ref, rettype='gb')
+        # Fetch entry and save handle to string.
+        handle = Entrez.efetch(db='protein', id=ref, rettype='gp', retmode='txt')
         handle_string = handle.read()
+
+        # Create temporary file and write data.
+        temp_gene = '/tmp/temp_gene'
+        f = open(temp_gene, 'w')
+        f.write(handle_string)
+        f.close()
+
+        # Create record by reading temp file.
+        record = SeqIO.read(open(temp_gene, 'rU'), 'genbank')
+
         # Define attributes.
-        #FIXME See if this is ok!
         self.description = record.description
         self.ref = record.id
         self.sequence = str(record.seq)
         self.set_gene_id()
+
         # Find gene name by regular expression.
         try:
             pattern = re.compile(r'gene="(.+)"')
@@ -181,6 +189,7 @@ class Locus(object):
 
     # Reverse BLAST folder.
     reverse_folder = 'reverse'
+    #FIXME Reverse BLAST should be reciprocal to the candidate gene species.
 
     def __init__(self, id, candidate, database):
         # Linkback to candidates.
@@ -329,6 +338,8 @@ def prepare(candidates, candidates_folder):
                 fasta_file.close()
         elif gene.endswith('.fa'):
             continue
+        elif gene.endswith('.txt'):
+            continue
         else:
             logger.debug('File type not supported: %s', gene)
 
@@ -359,7 +370,7 @@ def main(argv):
     # Folder with candidate-genes.
     candidates_folder = 'candidates'
     # Folder with candidate-genes BLASTs.
-    candidates_results_folder = os.path.join(candidates_folder, 'results')
+    candidates_results_folder = 'blasts'
 
     # Parse arguments.
     try:
@@ -423,7 +434,7 @@ def main(argv):
     # Get proper genes, now.
     candidates = os.listdir(candidates_folder)
     # Only read FASTA files.
-    candidates = [file for file in candidates if file.endswith('.fa')]
+    candidates = [file for file in candidates if file.endswith(('.fa', '.txt'))]
     #TODO make it recognize more FASTA extensions.
 
     # Print info before starting.
