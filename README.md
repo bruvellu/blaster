@@ -1,7 +1,7 @@
 # BLASTing batch script
 
 This script takes a series of candidate genes, BLAST them against a local 
-database (eg, transcriptome from an organism) to extract relevant sequences, 
+database (eg, transcriptome from an organism) to extract related loci, 
 BLAST these sequences against the reciprocal database from candidate genes (eg, human protein), retrieve and print the results for analysis.
 
 ## Installation
@@ -24,7 +24,7 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
     makeblastdb -in membranipora.fa -parse_seqids -dbtype nucl
     makeblastdb -in human_protein.fa -parse_seqids -dbtype prot
 
-2. Copy FASTA files with 1 gene sequence per file into the `candidates` folder.
+2. Copy FASTA files with 1 gene sequence per file into any folder (eg, `candidates`).
 
 3. Run the BLASTer command (database could also be in another folder).
 
@@ -34,7 +34,7 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
 
 ## Arguments
 
-`-c, --candidates` -- Folder with `.fa` or `.gb` files of candidate genes. 
+`-c, --candidates` -- Folder with `.fa`, `.gb`, or `.txt` files of candidate genes. 
 One gene per file.
 
 `-d, --database` -- Local database with new data (eg, transcriptome).
@@ -43,7 +43,7 @@ One gene per file.
 
 ## Internals
 
-1. Each candidate is BLASTed against the local database using the specified BLAST program.
+1. Each candidate is BLASTed against the local database using the specified BLAST program (default is `tblastn`).
 
 2. Best 3 loci hits are copied to `reverse` folder as FASTA files.
 
