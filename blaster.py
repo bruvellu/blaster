@@ -180,9 +180,11 @@ class Sequence(object):
                             #NOTE This means that only the first hsp found in the locus is added,
                             # while the other ones are skipped
                             if not locus_id in self.loci.keys():
+                                #TODO Save frame here!
                                 self.loci[locus_id] = {
                                         'score': hsp.score,
-                                        'evalue': hsp.expect
+                                        'evalue': hsp.expect,
+                                        'frame': hsp.frame[1],
                                         }
 
                             n += 1
@@ -207,6 +209,9 @@ class Locus(object):
     def __init__(self, id, candidate, database):
         # Linkback to candidates.
         self.candidates = {}
+
+        # Store BLASTs by reciprocal databases (ie, species name).
+        self.reciprocal_blasts = {}
 
         self.reciprocals = []
 
@@ -366,10 +371,9 @@ def usage():
     print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
     print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
     print
-
-    #TODO Omit the candidates folder option? Should not be needed.
-    #TODO Ability to specify limit for candidate blast results to be analysed.
-    #TODO Choose evalue threshold.
+    #TODO Limit number of loci from candidate blast results.
+    #TODO Specify threshold evalue.
+    #TODO Limit the number of genes looked up during reciprocal blast.
 
 def main(argv):
 
@@ -377,12 +381,12 @@ def main(argv):
     blast_types = ['blastn', 'blastp', 'blastx', 'tblastn', 'tblastx']
     # Database name.
     database = None
-    # BLAST command.
+    # Default BLAST command.
     blast_type = 'tblastn'
 
     # Folder with candidate-genes.
     candidates_folder = 'candidates'
-    # Folder with candidate-genes BLASTs.
+    # Folder with candidate-genes' BLASTs.
     candidates_results_folder = 'blasts'
 
     # Parse arguments.
@@ -414,6 +418,8 @@ def main(argv):
     # Print summary of arguments.
     logger.debug('Arguments: candidates=%s, database=%s, blast=%s', candidates_folder, database, blast_type)
 
+
+    ## PREPARE
 
     # Check if BLAST command was specified.
     if not blast_type:
@@ -449,6 +455,9 @@ def main(argv):
     # Only read FASTA files.
     candidates = [file for file in candidates if file.endswith(('.fa', '.txt'))]
     #TODO make it recognize more FASTA extensions.
+
+    ## ENDPREPARE
+
 
     # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
@@ -496,11 +505,14 @@ def main(argv):
         for locus_id in candidate.loci.keys():
             # If locus was already specified.
             if locus_id in loci.keys():
+                # Add current candidate to loci list.
                 locus = loci[locus_id]
                 locus.update_candidates(candidate)
             else:
                 # Instantiate Locus object.
                 locus = Locus(locus_id, candidate, database)
+
+                # For each blast, parse blast results
 
                 # Reciprocal BLAST querying locus sequence against human database.
                 try:
