@@ -557,7 +557,7 @@ def main(argv):
         #output_file.write('\t\t\t\tgene\t\t\tid\t\taccession\t\te-value\n')
 
         for organism, reciprocal_blast in locus.reciprocal_blasts.iteritems():
-            output_file.write('{0:>2}\n'.format(organism))
+            output_file.write('  {0:>2}\n'.format(organism))
             sequences = reciprocal_blast['sequences']
 
             # Instantiate first sequence to get gene id.
