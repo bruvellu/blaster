@@ -60,7 +60,6 @@ class Sequence(object):
     #TODO add __str__ to classes.
 
     def __init__(self, filepath=None, ref=None, database=None):
-        #TODO Make limit a variable variable.
         self.limit = 3
         self.loci = {}
         self.gene_name = ''
@@ -180,7 +179,6 @@ class Sequence(object):
                             #NOTE This means that only the first hsp found in the locus is added,
                             # while the other ones are skipped
                             if not locus_id in self.loci.keys():
-                                #TODO Save frame here!
                                 self.loci[locus_id] = {
                                         'score': hsp.score,
                                         'evalue': hsp.expect,
@@ -204,7 +202,6 @@ class Locus(object):
 
     # Reverse BLAST folder.
     reverse_folder = 'reverse'
-    #FIXME Reverse BLAST should be reciprocal to the candidate gene species.
 
     def __init__(self, id, frame, candidate, database):
         # Linkback to candidates.
@@ -213,14 +210,15 @@ class Locus(object):
         # Store BLASTs by reciprocal databases (ie, species name).
         self.reciprocal_blasts = {}
 
-        self.reciprocals = []
-
         self.update_candidates(candidate)
 
         self.reciprocal = False
         self.rank = 0
         self.id = id
-        self.frame = frame
+        if frame > 0:
+            self.frame = '+%d' % frame
+        else:
+            self.frame = str(frame)
         self.database = database
 
         # Create filename before the rest.
@@ -277,29 +275,23 @@ class Locus(object):
 
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
-        #TODO Insert line breaks for sequences.
-        locus_file = open(self.filepath, 'w')
-        locus_file.write('>%s\n%s' % (self.id, self.sequence))
-        locus_file.close()
+        wrote_fasta = SeqIO.write(SeqRecord(Seq(self.sequence), id=self.id, description=''), self.filepath, 'fasta')
 
     def parse_blast(self, organism):
         '''Parse reciprocal BLAST.'''
         print 'Parsing reciprocal BLAST: %s' % self.filename
+        #XXX Does it parse everytime.
         reverse_blast_output = self.reciprocal_blasts[organism]['path']
         blast_records = NCBIXML.parse(open(reverse_blast_output))
         for blast_record in blast_records:
             for alignment in blast_record.alignments:
                 for hsp in alignment.hsps:
                     if hsp.expect < self.EVALUE_THRESH:
-                        #XXX Better parse ref!
                         ref = alignment.title.split('|')[3]
-                        #print 'Creating object: %s' % ref
                         sequence = Sequence(ref=ref)
                         sequence.evalue = hsp.expect
                         sequence.score = hsp.score
                         self.reciprocal_blasts[organism]['sequences'].append(sequence)
-        # Process results.
-        #self.process()
 
     def process(self):
         '''Define if locus is reciprocal to the gene.
@@ -557,41 +549,42 @@ def main(argv):
 
     #TODO Print date and variables used to results.txt.
     for locus_id, locus in loci.iteritems():
-        fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, 
-            description='related to: %s' % ', '.join(locus.candidates.keys())))
-        print
-        print locus_id, locus.candidates.keys()
-        output_file.write('%s\t\t(candidates: %s)\n\n' % (locus_id, 
-            ', '.join(locus.candidates.keys())))
-        try:
-            first = locus.reciprocals[0]
-        except:
-            print '\tNo reciprocals.'
-        current_gene_id = first.gene_id
-        n_genes = 0
-        output_file.write('\tgene\t\tid\t\taccession\t\te-value\n')
-        for sequence in locus.reciprocals:
-            # Limits to 5 most similar genes.
-            if sequence.gene_id == current_gene_id or n_genes < 5:
-                print '\t%s, %s, %s, %s' % (
-                        sequence.gene_name, sequence.gene_id,
-                        sequence.ref, sequence.evalue
-                        )
+        locus_description = '| frame: %s | related to: %s' % (locus.frame, ', '.join(locus.candidates.keys()))
+        fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, description=locus_description))
+        output_file.write('%s %s\n\n' % (locus_id, locus_description))
 
-                output_file.write('\t%s\t\t%s\t\t%s\t\t%.2e' % (
-                        sequence.gene_name, sequence.gene_id,
-                        sequence.ref, sequence.evalue
-                        ))
-                accession_numbers = [seq.ref for seq in locus.candidates.values()]
-                if sequence.ref in accession_numbers:
-                    output_file.write(' <<')
-                output_file.write('\n')
-            else:
+        output_file.write('\t\t\t\tgene\t\t\tid\t\taccession\t\te-value\n')
+
+        for organism, reciprocal_blast in locus.reciprocal_blasts.iteritems():
+            output_file.write('  %s\n' % organism)
+            sequences = reciprocal_blast['sequences']
+
+            # Instantiate first sequence to get gene id.
+            try:
+                first = sequences[0]
+            except:
+                output_file.write('\t\t\t\tNo reciprocal sequences found.')
                 break
-            current_gene_id = sequence.gene_id
-            n_genes += 1
+
+            current_gene_id = first.gene_id
+            n_genes = 0
+            for sequence in sequences:
+                # Limits to 5 most similar genes.
+                if sequence.gene_id == current_gene_id or n_genes < 5:
+                    output_file.write('\t\t\t\t%s\t\t\t%s\t\t%s\t\t%.2e' % (
+                            sequence.gene_name, sequence.gene_id,
+                            sequence.ref, sequence.evalue
+                            ))
+                    accession_numbers = [seq.ref for seq in locus.candidates.values()]
+                    if sequence.ref in accession_numbers:
+                        output_file.write(' <<')
+                    output_file.write('\n')
+                else:
+                    break
+                current_gene_id = sequence.gene_id
+                n_genes += 1
         output_file.write('\n\n')
-    print
+
     output_file.close()
 
     wrote_fasta = SeqIO.write(fasta_loci, 'results.fa', 'fasta')
