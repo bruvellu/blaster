@@ -184,7 +184,7 @@ class Sequence(object):
                                 self.loci[locus_id] = {
                                         'score': hsp.score,
                                         'evalue': hsp.expect,
-                                        'frame': hsp.frame[1],
+                                        'frame': hsp.frame[1], # hit frame
                                         }
 
                             n += 1
@@ -235,7 +235,6 @@ class Locus(object):
             os.mkdir(self.reverse_results_folder)
 
         self.set_filepath()
-        self.set_blast_output()
         self.set_sequence()
 
         self.write_fasta()
@@ -254,10 +253,16 @@ class Locus(object):
         if not self.sequence:
             print 'SEQUENCE NOT SET! Check the IDs.'
 
-    def set_blast_output(self):
-        '''Build filepath for reverse blast output.'''
-        blast_output = os.path.join(self.reverse_results_folder, '%s.xml' % self.filename)
-        self.reverse_blast_output = blast_output
+    def set_blast_output(self, organism):
+        '''Build and return filepath for reverse blast output with organism name.'''
+        if not organism in self.reciprocal_blasts.keys():
+            o = organism.replace(' ', '_')
+            blast_output = os.path.join(
+                    self.reverse_results_folder, '%s-%s.xml' % (self.filename, o))
+            self.reciprocal_blasts[organism] = {
+                    'path': blast_output, 'sequences': []
+                    }
+        return self.reciprocal_blasts[organism]['path']
 
     def set_filepath(self):
         '''Build filepath from folder and filename.'''
@@ -276,10 +281,11 @@ class Locus(object):
         locus_file.write('>%s\n%s' % (self.id, self.sequence))
         locus_file.close()
 
-    def parse_blast(self):
+    def parse_blast(self, organism):
         '''Parse reciprocal BLAST.'''
         print 'Parsing reciprocal BLAST: %s' % self.filename
-        blast_records = NCBIXML.parse(open(self.reverse_blast_output))
+        reverse_blast_output = self.reciprocal_blasts[organism]['path']
+        blast_records = NCBIXML.parse(open(reverse_blast_output))
         for blast_record in blast_records:
             for alignment in blast_record.alignments:
                 for hsp in alignment.hsps:
@@ -290,7 +296,7 @@ class Locus(object):
                         sequence = Sequence(ref=ref)
                         sequence.evalue = hsp.expect
                         sequence.score = hsp.score
-                        self.reciprocals.append(sequence)
+                        self.reciprocal_blasts[organism]['sequences'].append(sequence)
         # Process results.
         #self.process()
 
@@ -503,39 +509,39 @@ def main(argv):
 
         #DO LOCUS STUFF
         for locus_id in candidate.loci.keys():
-            # If locus was already specified.
+            # Instantiate Locus object.
             if locus_id in loci.keys():
-                # Add current candidate to loci list.
                 locus = loci[locus_id]
+                # Update candidate list.
                 locus.update_candidates(candidate)
             else:
-                # Instantiate Locus object.
                 locus = Locus(locus_id, candidate, database)
 
-                # For each blast, parse blast results
+            # Generate file for BLAST output.
+            reverse_blast_output = locus.set_blast_output(candidate.organism)
 
-                # Reciprocal BLAST querying locus sequence against human database.
-                try:
-                    blastfile = open(locus.reverse_blast_output)
-                    blastfile.close()
-                except:
-                    #XXX Find a better way to overcome problem when path has a "|".
-                    reverse_args = {
-                            'query': locus.filepath.replace('|', '\|'),
-                            'db': candidate.reciprocal_db,
-                            'out': locus.reverse_blast_output.replace('|', '\|'),
-                            'outfmt': 5,
-                            }
-                    if blast_type == 'tblastn':
-                        blast('blastx', reverse_args)
-                    elif blast_type == 'blastp':
-                        blast('blastp', reverse_args)
+            # Reciprocal BLAST querying locus sequence against human database.
+            try:
+                blastfile = open(reverse_blast_output)
+                blastfile.close()
+            except:
+                #XXX Find a better way to overcome problem when path has a "|".
+                reverse_args = {
+                        'query': locus.filepath.replace('|', '\|'),
+                        'db': candidate.reciprocal_db,
+                        'out': reverse_blast_output.replace('|', '\|'),
+                        'outfmt': 5,
+                        }
+                if blast_type == 'tblastn':
+                    blast('blastx', reverse_args)
+                elif blast_type == 'blastp':
+                    blast('blastp', reverse_args)
 
-                # Parse reverse BLAST output.
-                locus.parse_blast()
+            # Parse reverse BLAST output.
+            locus.parse_blast(candidate.organism)
 
-                # Add locus to main list.
-                loci[locus_id] = locus
+            # Add locus to main list.
+            loci[locus_id] = locus
 
         # Add to main dictionary.
         genes[candidate.gene_name] = candidate
