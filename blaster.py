@@ -553,17 +553,18 @@ def main(argv):
         fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, description=locus_description))
         output_file.write('%s %s\n\n' % (locus_id, locus_description))
 
-        output_file.write('\t\t\t\tgene\t\t\tid\t\taccession\t\te-value\n')
+        output_file.write('\t\t\t\t{0:20}{1:20}{2:20}{3:1}\n'.format('gene', 'id', 'accession', 'e-value'))
+        #output_file.write('\t\t\t\tgene\t\t\tid\t\taccession\t\te-value\n')
 
         for organism, reciprocal_blast in locus.reciprocal_blasts.iteritems():
-            output_file.write('  %s\n' % organism)
+            output_file.write('{0:>2}\n'.format(organism))
             sequences = reciprocal_blast['sequences']
 
             # Instantiate first sequence to get gene id.
             try:
                 first = sequences[0]
             except:
-                output_file.write('\t\t\t\tNo reciprocal sequences found.')
+                output_file.write('\t\t\t\t{0}'.format('No reciprocal sequences found.'))
                 break
 
             current_gene_id = first.gene_id
@@ -571,13 +572,10 @@ def main(argv):
             for sequence in sequences:
                 # Limits to 5 most similar genes.
                 if sequence.gene_id == current_gene_id or n_genes < 5:
-                    output_file.write('\t\t\t\t%s\t\t\t%s\t\t%s\t\t%.2e' % (
-                            sequence.gene_name, sequence.gene_id,
-                            sequence.ref, sequence.evalue
-                            ))
+                    output_file.write('\t\t\t\t{0:20}{1:20}{2:20}{3:<.2e}'.format(sequence.gene_name, sequence.gene_id, sequence.ref, sequence.evalue))
                     accession_numbers = [seq.ref for seq in locus.candidates.values()]
                     if sequence.ref in accession_numbers:
-                        output_file.write(' <<')
+                        output_file.write(' {0:>}'.format('<<'))
                     output_file.write('\n')
                 else:
                     break
