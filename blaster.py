@@ -206,7 +206,7 @@ class Locus(object):
     reverse_folder = 'reverse'
     #FIXME Reverse BLAST should be reciprocal to the candidate gene species.
 
-    def __init__(self, id, candidate, database):
+    def __init__(self, id, frame, candidate, database):
         # Linkback to candidates.
         self.candidates = {}
 
@@ -220,6 +220,7 @@ class Locus(object):
         self.reciprocal = False
         self.rank = 0
         self.id = id
+        self.frame = frame
         self.database = database
 
         # Create filename before the rest.
@@ -515,7 +516,8 @@ def main(argv):
                 # Update candidate list.
                 locus.update_candidates(candidate)
             else:
-                locus = Locus(locus_id, candidate, database)
+                frame = candidate.loci[locus_id]['frame']
+                locus = Locus(locus_id, frame, candidate, database)
 
             # Generate file for BLAST output.
             reverse_blast_output = locus.set_blast_output(candidate.organism)
