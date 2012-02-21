@@ -96,14 +96,27 @@ class Sequence(object):
         record = SeqIO.read(filepath, 'fasta')
         # Define attributes.
         self.description = record.description.split('|')[-1]
-        #XXX Better parse ref!
         self.ref = record.id.split('|')[3]
         self.sequence = str(record.seq)
         self.gene_name = filepath.split('/')[-1][:-3]
+        self.organism = record.description.split('[')[1].split(']')[0]
+        self.set_reciprocal_db(self.organism)
+
+    def set_reciprocal_db(self, organism):
+        '''Set the reciprocal database according to candidate gene organism.'''
+        base_path = '/home/nelas/Biologia/Doutorado/databases/'
+        reciprocals = {
+                'Homo sapiens': 'human_protein.fa',
+                'Drosophila melanogaster': 'drosophila.fa',
+                'Danio rerio': 'zebrafish.fa',
+                }
+        try:
+            self.reciprocal_db = os.path.join(base_path, reciprocals[organism])
+        except:
+            self.reciprocal_db = os.path.join(base_path, 'human_protein.fa')
 
     def set_gene_id(self):
         '''Get and set gene id from NCBI.'''
-        #import pdb; pdb.set_trace()
         #FIXME Handle error when not returning id.
         handle = Entrez.esearch(db='gene', term=self.ref)
         record = Entrez.read(handle)
@@ -497,7 +510,7 @@ def main(argv):
                     #XXX Find a better way to overcome problem when path has a "|".
                     reverse_args = {
                             'query': locus.filepath.replace('|', '\|'),
-                            'db': '/home/nelas/Biologia/Doutorado/databases/human_protein.fa',
+                            'db': candidate.reciprocal_db,
                             'out': locus.reverse_blast_output.replace('|', '\|'),
                             'outfmt': 5,
                             }
