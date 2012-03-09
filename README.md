@@ -28,7 +28,7 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
 
 3. Run the BLASTer command (database could also be in another folder).
 
-    python blaster.py -d membranipora.fa -b tblastn
+    python blaster.py -c folder -d membranipora.fa -b tblastn
 
 4. Results (loci) are printed to 2 files. `results.txt` shows each locus with reciprocal BLAST output and e-values. `results.fa` aggregates the loci and their sequences.
 

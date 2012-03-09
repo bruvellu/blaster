@@ -280,7 +280,7 @@ class Locus(object):
     def parse_blast(self, organism):
         '''Parse reciprocal BLAST.'''
         print 'Parsing reciprocal BLAST: %s' % self.filename
-        #XXX Does it parse everytime.
+        #XXX Does it parse everytime?
         reverse_blast_output = self.reciprocal_blasts[organism]['path']
         blast_records = NCBIXML.parse(open(reverse_blast_output))
         for blast_record in blast_records:
@@ -548,6 +548,7 @@ def main(argv):
     output_file = open('results.txt', 'w')
 
     #TODO Print date and variables used to results.txt.
+    #TODO Translate sequence using the correct frame/strand and output it.
     for locus_id, locus in loci.iteritems():
         locus_description = '| frame: %s | candidates: %s' % (locus.frame, ', '.join(locus.candidates.keys()))
         fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, description=locus_description))
