@@ -48,7 +48,6 @@ class Sequence(object):
     blast_output: path to .xml file.
     loci: list of loci with recurrency?.
     '''
-    Entrez.email = 'organelas@gmail.com'
     EVALUE_THRESH = 0.001
 
     # Cache folder.
@@ -369,6 +368,7 @@ def usage():
     print '  -c, --candidates \n\tFolder with `.fa` or `.gb` files of candidate genes. One gene per file.'
     print '  -d, --database \n\tLocal database with new data (eg, transcriptome).'
     print '  -b, --blast \n\tBLAST command (blastn, blastp, blastx, tblastn, tblastx).'
+    print '  -e, --email \n\tYour email is required for Entrez.'
     print
     #TODO Limit number of loci from candidate blast results.
     #TODO Specify threshold evalue.
@@ -388,13 +388,17 @@ def main(argv):
     # Folder with candidate-genes' BLASTs.
     candidates_results_folder = 'blasts'
 
+    # Default email.
+    Entrez.email = 'your@email.com'
+
     # Parse arguments.
     try:
-        opts, args = getopt.getopt(argv, 'hc:d:b:', [
+        opts, args = getopt.getopt(argv, 'hc:d:b:e:', [
             'help',
             'candidates=',
             'database=',
             'blast=',
+            'email=',
             ])
     except getopt.GetoptError:
         usage()
@@ -413,9 +417,11 @@ def main(argv):
             database = os.path.abspath(arg)
         elif opt in ('-b', '--blast'):
             blast_type = arg
+        elif opt in ('-e', '--email'):
+            Entrez.email = arg
 
     # Print summary of arguments.
-    logger.debug('Arguments: candidates=%s, database=%s, blast=%s', candidates_folder, database, blast_type)
+    logger.debug('Arguments: candidates=%s, database=%s, blast=%s, email=%s', candidates_folder, database, blast_type, Entrez.email)
 
 
     ## PREPARE
