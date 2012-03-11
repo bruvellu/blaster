@@ -21,14 +21,14 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
 
 1. Convert databases to be BLASTable (if needed).
 
-    makeblastdb -in membranipora.fa -parse_seqids -dbtype nucl
-    makeblastdb -in human_protein.fa -parse_seqids -dbtype prot
+        makeblastdb -in membranipora.fa -parse_seqids -dbtype nucl
+        makeblastdb -in human_protein.fa -parse_seqids -dbtype prot
 
 2. Copy FASTA files with 1 gene sequence per file into any folder (eg, `candidates`).
 
 3. Run the BLASTer command (database could also be in another folder).
 
-    python blaster.py -c folder -d membranipora.fa -b tblastn -e your@email.com
+        python blaster.py -c folder -d membranipora.fa -b tblastn -e your@email.com
 
 4. Results (loci) are printed to 2 files. `results.txt` shows each locus with reciprocal BLAST output and e-values. `results.fa` aggregates the loci and their sequences.
 
@@ -39,7 +39,7 @@ One gene per file.
 
 `-d, --database` -- Local database with new data (eg, transcriptome).
 
-`-b, --blast` -- BLAST command (blastn, blastp, blastx, tblastn, tblastx).
+`-b, --blast` -- BLAST command (`blastn`, `blastp`, `blastx`, `tblastn`, `tblastx`).
 
 `-e, --email` -- Your email is required for Entrez.
 
