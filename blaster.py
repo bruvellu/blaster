@@ -98,20 +98,32 @@ class Sequence(object):
         self.sequence = str(record.seq)
         self.gene_name = filepath.split('/')[-1][:-3]
         self.organism = record.description.split('[')[1].split(']')[0]
-        self.set_reciprocal_db(self.organism)
+        #self.set_reciprocal_db(self.organism)
 
-    def set_reciprocal_db(self, organism):
+    def set_reciprocal_db(self):
         '''Set the reciprocal database according to candidate gene organism.'''
+        #FIXME Instead of doing a local blast, try to do a online one 
+        # restricting to the organisms refseq.
+        # handle = NCBIWWW.qblast("tblastn", "nr", "NP_077726.1", entrez_query="drosophila melanogaster[Organism]")
+        #XXX Keep an option to run a local reciprocal BLAST for the databases 
+        # available (it is much faster).
+
+        # Locally define organism.
+        organism = self.organism
         base_path = '/home/nelas/Biologia/Doutorado/databases/'
         reciprocals = {
                 'Homo sapiens': 'human_protein.fa',
                 'Drosophila melanogaster': 'drosophila.fa',
                 'Danio rerio': 'zebrafish.fa',
+                'Mus musculus': 'mouse.fa',
+                'Strongylocentrotus purpuratus': 'urchin.fa',
+                'Ciona intestinalis': 'ciona.fa',
                 }
         try:
             self.reciprocal_db = os.path.join(base_path, reciprocals[organism])
         except:
-            self.reciprocal_db = os.path.join(base_path, 'human_protein.fa')
+            #XXX Set a notice to install a local database.
+            self.reciprocal_db = None
 
     def set_gene_id(self):
         '''Get and set gene id from NCBI.'''
@@ -244,12 +256,16 @@ class Locus(object):
 
     def set_sequence(self):
         '''Get and set sequence from database.'''
+        #XXX parse_seqids option is needed for parsing the sequence id.
         parsed = SeqIO.parse(self.database, 'fasta')
         for locus in parsed:
             if locus.id == self.id:
                 self.sequence = str(locus.seq)
-        if not self.sequence:
+        try:
+            dummy_seq = self.sequence
+        except:
             print 'SEQUENCE NOT SET! Check the IDs.'
+            sys.exit(2)
 
     def set_blast_output(self, organism):
         '''Build and return filepath for reverse blast output with organism name.'''
@@ -286,7 +302,10 @@ class Locus(object):
             for alignment in blast_record.alignments:
                 for hsp in alignment.hsps:
                     if hsp.expect < self.EVALUE_THRESH:
-                        ref = alignment.title.split('|')[3]
+                        try:
+                            ref = alignment.title.split('|')[3]
+                        except:
+                            ref = alignment.title
                         sequence = Sequence(ref=ref)
                         sequence.evalue = hsp.expect
                         sequence.score = hsp.score
@@ -319,7 +338,7 @@ class Locus(object):
             print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '-')
 
 
-def blast(blast_type, arguments):
+def local_blast(blast_type, arguments):
     '''Execute BLAST command.'''
     # Instantiate the BLAST command.
     if blast_type == 'blastn':
@@ -331,7 +350,7 @@ def blast(blast_type, arguments):
     elif blast_type == 'tblastn':
         cline = NcbitblastnCommandline(**arguments)
     elif blast_type == 'tblastx':
-        cline = NcbitblastnCommandline(**arguments)
+        cline = NcbitblastxCommandline(**arguments)
 
     # Execute BLAST.
     stdout, stderr = cline()
@@ -497,7 +516,7 @@ def main(argv):
                 'outfmt': 5, # Export in XML
                 }
             # Execute BLAST command.
-            blast(blast_type, arguments)
+            local_blast(blast_type, arguments)
 
         logger.info('Parsing XML...')
         print '\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
@@ -525,17 +544,41 @@ def main(argv):
                 blastfile = open(reverse_blast_output)
                 blastfile.close()
             except:
-                #XXX Find a better way to overcome problem when path has a "|".
-                reverse_args = {
-                        'query': locus.filepath.replace('|', '\|'),
-                        'db': candidate.reciprocal_db,
-                        'out': reverse_blast_output.replace('|', '\|'),
-                        'outfmt': 5,
-                        }
-                if blast_type == 'tblastn':
-                    blast('blastx', reverse_args)
-                elif blast_type == 'blastp':
-                    blast('blastp', reverse_args)
+                # 1. Check available databases using set_reciprocal_db.
+                candidate.set_reciprocal_db()
+
+                # 2. If None, prepare for BLAST online based on the organism.
+
+                # Define variables for query and output file.
+                clean_locus_filepath = locus.filepath.replace('|', '\|')
+                clean_reverse_filepath = reverse_blast_output.replace('|', '\|')
+
+                if candidate.reciprocal_db:
+                    #XXX Find a better way to overcome problem when path has a "|".
+                    reverse_args = {
+                            'query': clean_locus_filepath,
+                            'db': candidate.reciprocal_db,
+                            'out': clean_reverse_filepath,
+                            'outfmt': 5,
+                            }
+                    #XXX What to do when recirocal database is not protein?
+                    if blast_type == 'tblastn':
+                        local_blast('blastx', reverse_args)
+                    elif blast_type == 'blastp':
+                        local_blast('blastp', reverse_args)
+                else:
+                    # LOG say we are blasting online for database.
+                    # BLAST ONLINE
+                    #import pdb; pdb.set_trace()
+                    #XXX Handle blastp as above, also.
+                    print 'BLASTing over NCBI... (may take a while).'
+                    logger.info('BLASTing %s over NCBI (restricted to %s).', 
+                            clean_locus_filepath, candidate.organism)
+                    handle = NCBIWWW.qblast('blastx', 'refseq_protein', open(clean_locus_filepath).read(), entrez_query='%s[Organism]' % candidate.organism)
+                    reverse_file = open(clean_reverse_filepath, 'w')
+                    reverse_file.write(handle.read())
+                    reverse_file.close()
+                    handle.close()
 
             # Parse reverse BLAST output.
             locus.parse_blast(candidate.organism)
@@ -571,8 +614,8 @@ def main(argv):
             try:
                 first = sequences[0]
             except:
-                output_file.write('\t\t\t\t{0}'.format('No reciprocal sequences found.'))
-                break
+                output_file.write('\t\t\t\t{0}'.format('No reciprocal sequences found.\n'))
+                continue
 
             current_gene_id = first.gene_id
             n_genes = 0
