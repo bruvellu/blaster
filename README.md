@@ -24,8 +24,8 @@ BLAST these sequences against the reciprocal database from candidate genes (eg, 
         makeblastdb -in membranipora.fa -parse_seqids -dbtype nucl
         makeblastdb -in human_protein.fa -parse_seqids -dbtype prot
 
-NOTE: `parse_seqids` argument is required for parsing the locus id from the 
-database using the Biopython SeqIO module.
+    NOTE: `parse_seqids` argument is required for parsing the locus id from the 
+    database using the Biopython SeqIO module.
 
 2. Copy FASTA files with 1 gene sequence per file into any folder (eg, `candidates`).
 
