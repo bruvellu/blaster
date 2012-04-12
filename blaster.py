@@ -547,18 +547,12 @@ def main(argv):
                 # 1. Check available databases using set_reciprocal_db.
                 candidate.set_reciprocal_db()
 
-                # 2. If None, prepare for BLAST online based on the organism.
-
-                # Define variables for query and output file.
-                clean_locus_filepath = locus.filepath.replace('|', '\|')
-                clean_reverse_filepath = reverse_blast_output.replace('|', '\|')
-
                 if candidate.reciprocal_db:
-                    #XXX Find a better way to overcome problem when path has a "|".
+                    # Sanitize filepaths for shell (ie handling "|" in locus IDs).
                     reverse_args = {
-                            'query': clean_locus_filepath,
+                            'query': '"%s"' % locus.filepath,
                             'db': candidate.reciprocal_db,
-                            'out': clean_reverse_filepath,
+                            'out': '"%s"' % reverse_blast_output,
                             'outfmt': 5,
                             }
                     #XXX What to do when recirocal database is not protein?
@@ -567,15 +561,13 @@ def main(argv):
                     elif blast_type == 'blastp':
                         local_blast('blastp', reverse_args)
                 else:
-                    # LOG say we are blasting online for database.
-                    # BLAST ONLINE
-                    #import pdb; pdb.set_trace()
+                    # 2. If None, prepare for BLAST online based on the organism.
                     #XXX Handle blastp as above, also.
                     print 'BLASTing over NCBI... (may take a while).'
                     logger.info('BLASTing %s over NCBI (restricted to %s).', 
-                            clean_locus_filepath, candidate.organism)
-                    handle = NCBIWWW.qblast('blastx', 'refseq_protein', open(clean_locus_filepath).read(), entrez_query='%s[Organism]' % candidate.organism)
-                    reverse_file = open(clean_reverse_filepath, 'w')
+                            locus.filepath, candidate.organism)
+                    handle = NCBIWWW.qblast('blastx', 'refseq_protein', open(locus.filepath).read(), entrez_query='%s[Organism]' % candidate.organism)
+                    reverse_file = open(reverse_blast_output, 'w')
                     reverse_file.write(handle.read())
                     reverse_file.close()
                     handle.close()
