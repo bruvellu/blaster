@@ -26,7 +26,6 @@ import logging
 import os
 import pickle
 import re
-import subprocess
 import sys
 
 from Bio import Entrez, SeqIO
@@ -102,10 +101,10 @@ class Sequence(object):
 
     def set_reciprocal_db(self):
         '''Set the reciprocal database according to candidate gene organism.'''
-        #FIXME Instead of doing a local blast, try to do a online one 
+        #FIXME Instead of doing a local blast, try to do a online one
         # restricting to the organisms refseq.
         # handle = NCBIWWW.qblast("tblastn", "nr", "NP_077726.1", entrez_query="drosophila melanogaster[Organism]")
-        #XXX Keep an option to run a local reciprocal BLAST for the databases 
+        #XXX Keep an option to run a local reciprocal BLAST for the databases
         # available (it is much faster).
 
         # Locally define organism.
@@ -118,6 +117,7 @@ class Sequence(object):
                 'Mus musculus': 'mouse.fa',
                 'Strongylocentrotus purpuratus': 'urchin.fa',
                 'Ciona intestinalis': 'ciona.fa',
+                'Prostheceraeus vittatus': 'prostheceraeus.fa',
                 }
         try:
             self.reciprocal_db = os.path.join(base_path, reciprocals[organism])
@@ -193,7 +193,7 @@ class Sequence(object):
                                 self.loci[locus_id] = {
                                         'score': hsp.score,
                                         'evalue': hsp.expect,
-                                        'frame': hsp.frame[1], # hit frame
+                                        'frame': hsp.frame[1],  # hit frame
                                         }
 
                             n += 1
@@ -356,6 +356,7 @@ def local_blast(blast_type, arguments):
     stdout, stderr = cline()
     print '%s BLASTed!' % arguments['query']
 
+
 def prepare(candidates, candidates_folder):
     '''Check candidate gene files (convert to FASTA, if needed).'''
     for gene in candidates:
@@ -378,6 +379,7 @@ def prepare(candidates, candidates_folder):
         else:
             logger.debug('File type not supported: %s', gene)
 
+
 def usage():
     '''Explanation for arguments.'''
 
@@ -392,6 +394,7 @@ def usage():
     #TODO Limit number of loci from candidate blast results.
     #TODO Specify threshold evalue.
     #TODO Limit the number of genes looked up during reciprocal blast.
+
 
 def main(argv):
 
@@ -442,9 +445,7 @@ def main(argv):
     # Print summary of arguments.
     logger.debug('Arguments: candidates=%s, database=%s, blast=%s, email=%s', candidates_folder, database, blast_type, Entrez.email)
 
-
     ## PREPARE
-
     # Check if BLAST command was specified.
     if not blast_type:
         logger.critical('BLAST command was not specified (use "-b"). Aborting...')
@@ -464,7 +465,7 @@ def main(argv):
 
     # Issue error if there are no candidate genes.
     if not candidates:
-        logger.critical('There are no candidate genes at %s folder! Aborting...', 
+        logger.critical('There are no candidate genes at %s folder! Aborting...',
                 candidates_folder)
         sys.exit(2)
 
@@ -481,7 +482,6 @@ def main(argv):
     #TODO make it recognize more FASTA extensions.
 
     ## ENDPREPARE
-
 
     # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
@@ -513,7 +513,7 @@ def main(argv):
                 'query': candidate.filepath,
                 'db': database,
                 'out': candidate.blast_output,
-                'outfmt': 5, # Export in XML
+                'outfmt': 5,  # Export in XML
                 }
             # Execute BLAST command.
             local_blast(blast_type, arguments)
@@ -564,7 +564,7 @@ def main(argv):
                     # 2. If None, prepare for BLAST online based on the organism.
                     #XXX Handle blastp as above, also.
                     print 'BLASTing over NCBI... (may take a while).'
-                    logger.info('BLASTing %s over NCBI (restricted to %s).', 
+                    logger.info('BLASTing %s over NCBI (restricted to %s).',
                             locus.filepath, candidate.organism)
                     handle = NCBIWWW.qblast('blastx', 'refseq_protein', open(locus.filepath).read(), entrez_query='%s[Organism]' % candidate.organism)
                     reverse_file = open(reverse_blast_output, 'w')
@@ -580,7 +580,6 @@ def main(argv):
 
         # Add to main dictionary.
         genes[candidate.gene_name] = candidate
-
 
     # Print loci equivalent to candidate genes.
     logger.info('Creating result files...')
