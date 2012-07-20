@@ -285,8 +285,13 @@ class Locus(object):
 
     def set_filename(self):
         '''Extract filename from ID.'''
-        filename = '_'.join(self.id.split('_')[:2])
-        self.filename = filename
+        self.filename = self.parse_filename(self.id)
+
+    def parse_filename(self, filename):
+        '''Parse id to a valid filepath.'''
+        # Remove spaces and slashes to avoid filepath issues.
+        filename = filename.replace(' ', '_').replace('/', '-')
+        return filename
 
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
