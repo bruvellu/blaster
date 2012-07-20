@@ -377,12 +377,24 @@ def prepare(candidates, candidates_folder):
                 fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
                 fasta_file.write(record.format('fasta'))
                 fasta_file.close()
-        elif gene.endswith('.fa'):
-            continue
-        elif gene.endswith('.txt'):
-            continue
+        elif gene.endswith('.fa') or gene.endswith('.txt'):
+            # 1. Parse ref
+            record = SeqIO.read(gene_filepath, 'fasta')
+            gene_ref = record.id.split('|')[3]
+
+            # 2. Using ref to fetch genbank
+            # Fetch entry and save handle to string.
+            handle = Entrez.efetch(db='protein', id=gene_ref, rettype='gp', retmode='txt')
+            handle_string = handle.read()
+
+            # 3. Write genbank file
+            f = open(gene_filepath.split('.')[0] + '.gb', 'w')
+            f.write(handle_string)
+            f.close()
+
         else:
             logger.debug('File type not supported: %s', gene)
+    import pdb; pdb.set_trace()
 
 
 def usage():
