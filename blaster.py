@@ -451,6 +451,7 @@ def main(argv):
     logger.debug('Arguments: candidates=%s, database=%s, blast=%s, email=%s', candidates_folder, database, blast_type, Entrez.email)
 
     ## PREPARE
+
     # Check if BLAST command was specified.
     if not blast_type:
         logger.critical('BLAST command was not specified (use "-b"). Aborting...')
@@ -462,6 +463,7 @@ def main(argv):
             sys.exit(2)
 
     # Get candidate genes.
+    #TODO Make it recursively search sub-directories.
     try:
         candidates = os.listdir(candidates_folder)
     except OSError:
@@ -470,18 +472,20 @@ def main(argv):
 
     # Issue error if there are no candidate genes.
     if not candidates:
-        logger.critical('There are no candidate genes at %s folder! Aborting...',
+        logger.critical('No candidate genes at %s folder! Aborting...',
                 candidates_folder)
         sys.exit(2)
 
-    # Check if results exists.
+    # Check if results folder exists.
     if not os.path.isdir(candidates_results_folder):
         os.mkdir(candidates_results_folder)
 
     # Process candidate genes.
     prepare(candidates, candidates_folder)
+
     # Get proper genes, now.
     candidates = os.listdir(candidates_folder)
+
     # Only read FASTA files.
     candidates = [file for file in candidates if file.endswith(('.fa', '.txt'))]
     #TODO make it recognize more FASTA extensions.
