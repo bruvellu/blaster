@@ -368,15 +368,16 @@ def prepare(candidates, candidates_folder):
         gene_filepath = os.path.join(candidates_folder, gene)
 
         if gene.endswith('.gb'):
-            # Create record object.
-            record = SeqIO.read(gene_filepath, 'genbank')
-            # Create FASTA file.
-            try:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'r')
-            except IOError:
-                fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
-                fasta_file.write(record.format('fasta'))
-                fasta_file.close()
+            pass
+            # # Create record object.
+            # record = SeqIO.read(gene_filepath, 'genbank')
+            # # Create FASTA file.
+            # try:
+            #     fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'r')
+            # except IOError:
+            #     fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
+            #     fasta_file.write(record.format('fasta'))
+            #     fasta_file.close()
         elif gene.endswith('.fa') or gene.endswith('.txt'):
             # 1. Parse ref
             record = SeqIO.read(gene_filepath, 'fasta')
@@ -384,17 +385,43 @@ def prepare(candidates, candidates_folder):
 
             # 2. Using ref to fetch genbank
             # Fetch entry and save handle to string.
-            handle = Entrez.efetch(db='protein', id=gene_ref, rettype='gp', retmode='txt')
-            handle_string = handle.read()
+            handle_string = efetcher(ref=gene_ref)
 
             # 3. Write genbank file
-            f = open(gene_filepath.split('.')[0] + '.gb', 'w')
-            f.write(handle_string)
-            f.close()
-
+            if handle_string:
+                f = open(gene_filepath.split('.')[0] + '.gb', 'w')
+                f.write(handle_string)
+                f.close()
         else:
             logger.debug('File type not supported: %s', gene)
     import pdb; pdb.set_trace()
+
+
+def efetcher(ref, db='protein', rettype='gp', retmode='txt'):
+    '''Container function for Entrez.efetch.
+
+    Tries to access Entrez, retry in case of failure.
+
+    Return handle string ready to be written into file.
+    '''
+    logger.debug('Initiating Entrez via efetch...')
+    logger.debug('ref=%s, db=%s, rettype=%s, retmode=%s', ref, db, rettype, retmode)
+
+    # Trying to contact Entrez.
+    try:
+        handle = Entrez.efetch(db=db, id=ref, rettype=rettype, retmode=retmode)
+        handle_string = handle.read()
+        logger.debug('Fetched %s!', ref)
+        return handle_string
+    except:
+        logger.debug('Entrez connection failed. Retrying...')
+        handle = Entrez.efetch(db=db, id=ref, rettype=rettype, retmode=retmode)
+        handle_string = handle.read()
+        logger.debug('Fetched %s!', ref)
+        return handle_string
+    else:
+        logger.critical('Entrez fetching failed for %s, giving up.', ref)
+        return None
 
 
 def usage():
