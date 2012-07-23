@@ -367,7 +367,7 @@ def prepare(candidates, candidates_folder):
     for gene in candidates:
         gene_filepath = os.path.join(candidates_folder, gene)
 
-        if gene.endswith('.gb'):
+        if gene.endswith(('.gb', 'genbank')):
             pass
             # # Create record object.
             # record = SeqIO.read(gene_filepath, 'genbank')
@@ -378,7 +378,7 @@ def prepare(candidates, candidates_folder):
             #     fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
             #     fasta_file.write(record.format('fasta'))
             #     fasta_file.close()
-        elif gene.endswith('.fa') or gene.endswith('.txt'):
+        elif gene.endswith(('.fa', '.txt')):
             # 1. Parse ref
             record = SeqIO.read(gene_filepath, 'fasta')
             gene_ref = record.id.split('|')[3]
