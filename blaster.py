@@ -24,8 +24,6 @@ See README file for details or execute the command for usage and arguments:
 import getopt
 import logging
 import os
-import pickle
-import re
 import sys
 
 from Bio import Entrez, SeqIO
@@ -62,29 +60,25 @@ class Sequence(object):
         self.loci = {}
         self.gene_name = ''
         self.database = database
+
         if filepath:
+            # Candidate gene sequences are instantiated with a filepath.
             self.filepath = filepath
             self.parse_genbank(self.filepath)
         else:
+            # Resulting genes from reverse blasts are queried by ref.
             cache_filename = ref + '.gb'
             cache_path = os.path.join(self.cache_folder, cache_filename)
-            # Use efetcher function here.
             try:
+                # Try to get cached file.
                 self.parse_genbank(cache_path)
             except:
+                # Fetch data, create cache, and parse data.
                 handle_string = efetcher(ref)
                 cache_file = open(cache_path, 'wb')
                 cache_file.write(handle_string)
                 cache_file.close()
                 self.parse_genbank(cache_path)
-
-    def load_cache(self, cached):
-        '''Load attributes saved in cache files.'''
-        self.description = cached.description
-        self.ref = cached.ref
-        self.sequence = cached.sequence
-        self.gene_name = cached.gene_name
-        self.gene_id = cached.gene_id
 
     def parse_genbank(self, filepath):
         '''Parse data from GENBANK file.'''
@@ -95,7 +89,6 @@ class Sequence(object):
         self.sequence = str(record.seq)
         self.gene_name, self.gene_id = self.get_gene_name_id(record)
         self.organism = record.description.split('[')[1].split(']')[0]
-        #self.set_reciprocal_db(self.organism)
 
     def parse_fasta(self, filepath):
         '''Parse data from FASTA file.'''
@@ -106,13 +99,15 @@ class Sequence(object):
         self.sequence = str(record.seq)
         self.gene_name = filepath.split('/')[-1][:-3]
         self.organism = record.description.split('[')[1].split(']')[0]
-        #self.set_reciprocal_db(self.organism)
 
     def get_gene_name_id(self, record):
         '''Return the gene name and id from a SeqRecord.'''
+        # Extract CDS feature.
         cds = [feature for feature in record.features if feature.type == 'CDS'][0]
         try:
+            # Get gene name.
             gene_name = cds.qualifiers.get('gene')[0]
+            # Find gene id.
             gene_db_xref = cds.qualifiers.get('db_xref')
             for xref in gene_db_xref:
                 if xref.startswith('GeneID'):
@@ -125,12 +120,6 @@ class Sequence(object):
 
     def set_reciprocal_db(self):
         '''Set the reciprocal database according to candidate gene organism.'''
-        #FIXME Instead of doing a local blast, try to do a online one
-        # restricting to the organisms refseq.
-        # handle = NCBIWWW.qblast("tblastn", "nr", "NP_077726.1", entrez_query="drosophila melanogaster[Organism]")
-        #XXX Keep an option to run a local reciprocal BLAST for the databases
-        # available (it is much faster).
-
         # Locally define organism.
         organism = self.organism
         base_path = '/home/nelas/Biologia/Doutorado/databases/'
@@ -146,55 +135,8 @@ class Sequence(object):
         try:
             self.reciprocal_db = os.path.join(base_path, reciprocals[organism])
         except:
-            #XXX Set a notice to install a local database.
+            logger.warning('Database missing for %s!', organism)
             self.reciprocal_db = None
-
-    def set_gene_id(self):
-        '''Get and set gene id from NCBI.'''
-        #FIXME Handle error when not returning id.
-        handle = Entrez.esearch(db='gene', term=self.ref)
-        record = Entrez.read(handle)
-        if record['IdList']:
-            self.gene_id = record['IdList'][0]
-        else:
-            self.gene_id = None
-
-    def set_gene_name(self):
-        '''Get and set gene name from filepath.'''
-        filepath = os.path.basename(self.filepath)
-        self.gene_name = os.path.splitext(filepath)[0]
-
-    def fetch(self, ref):
-        '''Fetch data from NCBI.'''
-        # Fetch entry and save handle to string.
-        handle = Entrez.efetch(db='protein', id=ref, rettype='gp', retmode='txt')
-        handle_string = handle.read()
-
-        # Create temporary file and write data.
-        temp_gene = '/tmp/temp_gene'
-        f = open(temp_gene, 'w')
-        f.write(handle_string)
-        f.close()
-
-        # Create record by reading temp file.
-        record = SeqIO.read(open(temp_gene, 'rU'), 'genbank')
-
-        # Define attributes.
-        self.description = record.description
-        self.ref = record.id
-        self.sequence = str(record.seq)
-        self.set_gene_id()
-
-        # Find gene name by regular expression.
-        try:
-            pattern = re.compile(r'gene="(.+)"')
-            reobj = pattern.search(handle_string)
-            self.gene_name = reobj.group(1)
-        except:
-            self.gene_name = 'Not found'
-        # To extract gene description, name and other info from xml parsing.
-        #>>> record['Bioseq-set_seq-set'][0]['Seq-entry_set']['Bioseq-set']['Bioseq-set_seq-set'][0]['Seq-entry_seq']['Bioseq']['Bioseq_annot'][0]['Seq-annot_data']['Seq-annot_data_ftable'][1]['Seq-feat_data']['SeqFeatData']['SeqFeatData_gene']['Gene-ref']
-        #>>> {u'Gene-ref_desc': 'DEAD (Asp-Glu-Ala-Asp) box polypeptide 4', u'Gene-ref_syn': ['VASA'], u'Gene-ref_locus': 'DDX4'}
 
     def parse_blast(self):
         '''Parse BLAST output file.'''
@@ -211,8 +153,7 @@ class Sequence(object):
                             locus_id = alignment.title.split()[0]
 
                             # Save locus to dictionary if key does not exists.
-                            #NOTE This means that only the first hsp found in the locus is added,
-                            # while the other ones are skipped
+                            # Only first hsp found for locus is added, other are skipped.
                             if not locus_id in self.loci.keys():
                                 self.loci[locus_id] = {
                                         'score': hsp.score,
@@ -280,7 +221,6 @@ class Locus(object):
 
     def set_sequence(self):
         '''Get and set sequence from database.'''
-        #XXX parse_seqids option is needed for parsing the sequence id.
         parsed = SeqIO.parse(self.database, 'fasta')
         for locus in parsed:
             if locus.id == self.id:
@@ -319,12 +259,11 @@ class Locus(object):
 
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
-        wrote_fasta = SeqIO.write(SeqRecord(Seq(self.sequence), id=self.id, description=''), self.filepath, 'fasta')
+        SeqIO.write(SeqRecord(Seq(self.sequence), id=self.id, description=''), self.filepath, 'fasta')
 
     def parse_blast(self, organism):
         '''Parse reciprocal BLAST.'''
         print 'Parsing reciprocal BLAST: %s' % self.filename
-        #XXX Does it parse everytime?
         reverse_blast_output = self.reciprocal_blasts[organism]['path']
         blast_records = NCBIXML.parse(open(reverse_blast_output))
         for blast_record in blast_records:
@@ -339,32 +278,6 @@ class Locus(object):
                         sequence.evalue = hsp.expect
                         sequence.score = hsp.score
                         self.reciprocal_blasts[organism]['sequences'].append(sequence)
-
-    def process(self):
-        '''Define if locus is reciprocal to the gene.
-
-        True: if it matches the same gene_id and ref from the candidate gene.
-        '''
-        #TODO Handle when gene_id is None?
-        rank = 0
-        print '\nrank\tgene\tref\t\thit'
-        for sequence in self.reciprocals:
-            if sequence.gene_id == current_gene_id:
-                #DOSTUFF
-                continue
-            else:
-                break
-            current_gene_id = sequence.gene_id
-
-            rank += 1
-            #if sequence.gene_id == self.candidate.gene_id:
-            #    if sequence.ref == self.candidate.ref:
-            #        print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '+')
-            #        print '\nFound reciprocal! Gene: %s, Ref: %s\n' % (sequence.gene_id, sequence.ref)
-            #        self.reciprocal = True
-            #        self.rank = rank
-            #        break
-            print '%d\t%s\t%s\t%s' % (rank, sequence.gene_id, sequence.ref, '-')
 
 
 def local_blast(blast_type, arguments):
@@ -391,34 +304,24 @@ def prepare(candidates, candidates_folder):
     for gene in candidates:
         gene_filepath = os.path.join(candidates_folder, gene)
         gene_gb = gene_filepath.split('.')[0] + '.gb'
-        gene_fa = gene_filepath.split('.')[0] + '.fa'
 
         if gene.endswith(('.gb', '.genbank')):
             continue
-            # # Create record object.
-            # record = SeqIO.read(gene_filepath, 'genbank')
-            # # Create FASTA file.
-            # try:
-            #     fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'r')
-            # except IOError:
-            #     fasta_file = open(gene_filepath.split('.')[0] + '.fa', 'w')
-            #     fasta_file.write(record.format('fasta'))
-            #     fasta_file.close()
         elif gene.endswith(('.fa', '.txt')):
+            logger.debug('Found FASTA: %s; converting to GENBANK...', gene_filepath)
             # Only fetch if file does not exist.
             try:
                 open(gene_gb, 'r')
                 pass
             except IOError:
-                # 1. Parse ref
+                # 1. Parse ref.
                 record = SeqIO.read(gene_filepath, 'fasta')
                 gene_ref = record.id.split('|')[3]
 
-                # 2. Using ref to fetch genbank
-                # Fetch entry and save handle to string.
+                # 2. Fetch entry with ref and save handle to string.
                 handle_string = efetcher(ref=gene_ref)
 
-                # 3. Write genbank file
+                # 3. Write genbank file.
                 if handle_string:
                     f = open(gene_gb, 'w')
                     f.write(handle_string)
@@ -598,7 +501,7 @@ def main(argv):
                 )
         candidate.parse_blast()
 
-        #DO LOCUS STUFF
+        # Work on loci.
         for locus_id in candidate.loci.keys():
             # Instantiate Locus object.
             if locus_id in loci.keys():
@@ -661,7 +564,6 @@ def main(argv):
     output_file = open('results.txt', 'w')
 
     #TODO Print date and variables used to results.txt.
-    #TODO Translate sequence using the correct frame/strand and output it.
     for locus_id, locus in loci.iteritems():
         locus_description = '| frame: %s | candidates: %s' % (locus.frame, ', '.join(locus.candidates.keys()))
         fasta_loci.append(SeqRecord(Seq(locus.sequence), id=locus_id, description=locus_description))
