@@ -66,17 +66,17 @@ class Sequence(object):
             self.filepath = filepath
             self.parse_genbank(self.filepath)
         else:
-            cache_path = os.path.join(self.cache_folder, ref)
+            cache_filename = ref + '.gb'
+            cache_path = os.path.join(self.cache_folder, cache_filename)
+            # Use efetcher function here.
             try:
-                cache_file = open(cache_path, 'rb')
-                cached = pickle.load(cache_file)
-                self.load_cache(cached)
-                cache_file.close()
+                self.parse_genbank(cache_path)
             except:
-                self.fetch(ref)
+                handle_string = efetcher(ref)
                 cache_file = open(cache_path, 'wb')
-                pickle.dump(self, cache_file)
+                cache_file.write(handle_string)
                 cache_file.close()
+                self.parse_genbank(cache_path)
 
     def load_cache(self, cached):
         '''Load attributes saved in cache files.'''
@@ -405,6 +405,7 @@ def prepare(candidates, candidates_folder):
             #     fasta_file.write(record.format('fasta'))
             #     fasta_file.close()
         elif gene.endswith(('.fa', '.txt')):
+            # Only fetch if file does not exist.
             try:
                 open(gene_gb, 'r')
                 pass
