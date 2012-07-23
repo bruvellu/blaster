@@ -64,9 +64,8 @@ class Sequence(object):
         self.database = database
         if filepath:
             self.filepath = filepath
-            self.parse_fasta(self.filepath)
-            self.set_gene_id()
-            self.set_gene_name()
+            import pdb; pdb.set_trace()
+            self.parse_genbank(self.filepath)
         else:
             cache_path = os.path.join(self.cache_folder, ref)
             try:
@@ -88,6 +87,17 @@ class Sequence(object):
         self.gene_name = cached.gene_name
         self.gene_id = cached.gene_id
 
+    def parse_genbank(self, filepath):
+        '''Parse data from GENBANK file.'''
+        record = SeqIO.read(filepath, 'genbank')
+        # Define class attributes.
+        self.description = record.description
+        self.ref = record.id
+        self.sequence = str(record.seq)
+        self.gene_name, self.gene_id = self.get_gene_name_id(record)
+        self.organism = record.description.split('[')[1].split(']')[0]
+        #self.set_reciprocal_db(self.organism)
+
     def parse_fasta(self, filepath):
         '''Parse data from FASTA file.'''
         record = SeqIO.read(filepath, 'fasta')
@@ -98,6 +108,25 @@ class Sequence(object):
         self.gene_name = filepath.split('/')[-1][:-3]
         self.organism = record.description.split('[')[1].split(']')[0]
         #self.set_reciprocal_db(self.organism)
+
+    def get_gene_name_id(self, record):
+        '''Return the gene name and id from a SeqRecord.'''
+        for feature in seq.features:
+            if feature.type == 'CDS':
+                try:
+                    gene_name = feature.qualifiers.get('gene')
+                    gene_db_xref = feature.qualifiers.get('db_xref')
+                    for xref in gene_db_xref:
+                        if xref.startswith('GeneID'):
+                            gene_id = xref.split(':')[-1]
+                    return gene_name, gene_id
+                except:
+                    logger.critical('Could not get gene name or id from %s', record.id)
+                    return None, None
+            else:
+                # No CDS in the record.
+                logger.critical('No CDS was found in %s', record.id)
+                return None, None
 
     def set_reciprocal_db(self):
         '''Set the reciprocal database according to candidate gene organism.'''
@@ -367,7 +396,7 @@ def prepare(candidates, candidates_folder):
     for gene in candidates:
         gene_filepath = os.path.join(candidates_folder, gene)
 
-        if gene.endswith(('.gb', 'genbank')):
+        if gene.endswith(('.gb', '.genbank')):
             pass
             # # Create record object.
             # record = SeqIO.read(gene_filepath, 'genbank')
@@ -394,7 +423,6 @@ def prepare(candidates, candidates_folder):
                 f.close()
         else:
             logger.debug('File type not supported: %s', gene)
-    import pdb; pdb.set_trace()
 
 
 def efetcher(ref, db='protein', rettype='gp', retmode='txt'):
@@ -489,8 +517,6 @@ def main(argv):
     # Print summary of arguments.
     logger.debug('Arguments: candidates=%s, database=%s, blast=%s, email=%s', candidates_folder, database, blast_type, Entrez.email)
 
-    ## PREPARE
-
     # Check if BLAST command was specified.
     if not blast_type:
         logger.critical('BLAST command was not specified (use "-b"). Aborting...')
@@ -525,11 +551,8 @@ def main(argv):
     # Get proper genes, now.
     candidates = os.listdir(candidates_folder)
 
-    # Only read FASTA files.
-    candidates = [file for file in candidates if file.endswith(('.fa', '.txt'))]
-    #TODO make it recognize more FASTA extensions.
-
-    ## ENDPREPARE
+    # Only read GENBANK files.
+    candidates = [file for file in candidates if file.endswith(('.gb', '.genbank'))]
 
     # Print info before starting.
     logger.info('%d genes to be BLASTed against %s database!', len(candidates),
