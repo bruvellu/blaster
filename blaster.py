@@ -102,21 +102,27 @@ class Sequence(object):
 
     def get_gene_name_id(self, record):
         '''Return the gene name and id from a SeqRecord.'''
-        # Extract CDS feature.
+        # Extract CDS feature. Check if CDS exists?
         cds = [feature for feature in record.features if feature.type == 'CDS'][0]
+
+        # Get gene name.
         try:
-            # Get gene name.
             gene_name = cds.qualifiers.get('gene')[0]
-            # Find gene id.
+        except:
+            logger.critical('No gene name for %s', record.id)
+            gene_name = None
+
+        # Find gene id.
+        try:
             gene_db_xref = cds.qualifiers.get('db_xref')
             for xref in gene_db_xref:
                 if xref.startswith('GeneID'):
                     gene_id = xref.split(':')[-1]
-            return gene_name, gene_id
+            else:
+                gene_id = None
         except:
-            # No CDS in the record.
-            logger.critical('No CDS was found in %s', record.id)
-            return None, None
+            gene_id = None
+        return gene_name, gene_id
 
     def set_reciprocal_db(self):
         '''Set the reciprocal database according to candidate gene organism.'''
