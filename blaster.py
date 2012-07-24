@@ -118,8 +118,7 @@ class Sequence(object):
             for xref in gene_db_xref:
                 if xref.startswith('GeneID'):
                     gene_id = xref.split(':')[-1]
-            else:
-                gene_id = None
+                    break
         except:
             gene_id = None
         return gene_name, gene_id
