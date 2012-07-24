@@ -303,17 +303,17 @@ def prepare(candidates, candidates_folder):
     '''Check candidate gene files (convert to FASTA, if needed).'''
     for gene in candidates:
         gene_filepath = os.path.join(candidates_folder, gene)
-        gene_gb = gene_filepath.split('.')[0] + '.gb'
+        gene_gb = os.path.splitext(gene_filepath)[0] + '.gb'
 
         if gene.endswith(('.gb', '.genbank')):
             continue
         elif gene.endswith(('.fa', '.txt')):
-            logger.debug('Found FASTA: %s; converting to GENBANK...', gene_filepath)
             # Only fetch if file does not exist.
             try:
                 open(gene_gb, 'r')
                 pass
             except IOError:
+                logger.debug('Found FASTA: %s; converting to GENBANK...', gene_filepath)
                 # 1. Parse ref.
                 record = SeqIO.read(gene_filepath, 'fasta')
                 gene_ref = record.id.split('|')[3]
