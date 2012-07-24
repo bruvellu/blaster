@@ -65,6 +65,9 @@ class Sequence(object):
             # Candidate gene sequences are instantiated with a filepath.
             self.filepath = filepath
             self.parse_genbank(self.filepath)
+            # Fallback to candidate gene filename, if needed.
+            if not self.gene_name:
+                self.gene_name = os.path.splitext(os.path.basename(self.filepath))[0]
         else:
             # Resulting genes from reverse blasts are queried by ref.
             cache_filename = ref + '.gb'
@@ -108,6 +111,7 @@ class Sequence(object):
         # Get gene name.
         try:
             gene_name = cds.qualifiers.get('gene')[0]
+            gene_name = parse_filename(gene_name)
         except:
             logger.critical('No gene name for %s', record.id)
             gene_name = None
@@ -203,7 +207,7 @@ class Locus(object):
         self.database = database
 
         # Create filename before the rest.
-        self.set_filename()
+        self.filename = parse_filename(self.id)
 
         self.reverse_results_folder = os.path.join(self.reverse_folder, 'results')
 
@@ -252,16 +256,6 @@ class Locus(object):
         locus_filepath = os.path.join(self.reverse_folder, '%s.fa' % self.filename)
         self.filepath = locus_filepath
 
-    def set_filename(self):
-        '''Extract filename from ID.'''
-        self.filename = self.parse_filename(self.id)
-
-    def parse_filename(self, filename):
-        '''Parse id to a valid filepath.'''
-        # Remove spaces and slashes to avoid filepath issues.
-        filename = filename.replace(' ', '_').replace('/', '-')
-        return filename
-
     def write_fasta(self):
         '''Write FASTA file to filepath.'''
         SeqIO.write(SeqRecord(Seq(self.sequence), id=self.id, description=''), self.filepath, 'fasta')
@@ -283,6 +277,13 @@ class Locus(object):
                         sequence.evalue = hsp.expect
                         sequence.score = hsp.score
                         self.reciprocal_blasts[organism]['sequences'].append(sequence)
+
+
+def parse_filename(string):
+    '''Parse string to a valid filepath.'''
+    # Remove spaces and slashes to avoid filepath issues.
+    parsed = string.replace(' ', '_').replace('/', '-')
+    return parsed
 
 
 def local_blast(blast_type, arguments):
