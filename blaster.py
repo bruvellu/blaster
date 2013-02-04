@@ -26,6 +26,9 @@ import logging
 import os
 import sys
 
+from datetime import datetime
+from shutil import move
+
 from Bio import Entrez, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -123,8 +126,12 @@ class Sequence(object):
                 if xref.startswith('GeneID'):
                     gene_id = xref.split(':')[-1]
                     break
+            else:
+                gene_id = '[empty]'
+                logger.critical('No gene id for %s', record.id)
         except:
-            gene_id = None
+            gene_id = '[empty]'
+            logger.critical('No gene id for %s', record.id)
         return gene_name, gene_id
 
     def set_reciprocal_db(self):
@@ -322,6 +329,7 @@ def prepare(candidates, candidates_folder):
                 logger.debug('Found FASTA: %s; converting to GENBANK...', gene_filepath)
                 # 1. Parse ref.
                 record = SeqIO.read(gene_filepath, 'fasta')
+                #XXX Candidate genes id should be formatted as NCBI (with reference number).
                 gene_ref = record.id.split('|')[3]
 
                 # 2. Fetch entry with ref and save handle to string.
@@ -361,6 +369,18 @@ def efetcher(ref, db='protein', rettype='gp', retmode='txt'):
     else:
         logger.critical('Entrez fetching failed for %s, giving up.', ref)
         return None
+
+
+def backup(filepath):
+    '''Store previous results file.'''
+    # Check if results.txt exists.
+    # If yes, rename it with timestamp and mv to hidden.
+    raw_timestamp = os.path.getmtime(filepath)
+    timestamp = datetime.fromtimestamp(raw_timestamp)
+    timestamp_string = timestamp.strftime('%Y-%m-%d_%Hh%Mm%Ss')
+    new_name = '.results_%s.txt' % timestamp_string
+    move(filepath, new_name)
+    return new_name
 
 
 def usage():
@@ -567,7 +587,17 @@ def main(argv):
     logger.info('Creating result files...')
 
     fasta_loci = []
-    output_file = open('results.txt', 'w')
+    results_filepath = 'results.txt'
+    try:
+        previous = open(results_filepath)
+        backed_up = backup(results_filepath)
+        if backed_up:
+            logger.info('Old results backed up: %s', backed_up)
+        else:
+            logger.warning('No backup for %s', results_filepath)
+    except:
+        pass
+    output_file = open(results_filepath, 'w')
 
     #TODO Print date and variables used to results.txt.
     for locus_id, locus in loci.iteritems():
