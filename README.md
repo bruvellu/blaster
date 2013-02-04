@@ -1,8 +1,7 @@
 # BLASTing batch script
 
-This script takes a series of candidate genes, BLAST them against a local 
-database (eg, transcriptome from an organism) to extract related loci, 
-BLAST these sequences against the reciprocal database from candidate genes (eg, human protein), retrieve and print the results for analysis.
+This script takes a series of candidate genes and BLAST them against a local 
+database (eg, transcriptome from an organism) to find related loci. These loci are then BLASTed against the reciprocal database of the original candidate gene (eg, human protein). Loci which the reciprocal BLAST returns the expected gene are compiled and saved for analysis.
 
 ## Installation
 
