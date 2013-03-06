@@ -50,11 +50,13 @@ class Sequence(object):
     '''
     EVALUE_THRESH = 0.001
 
-    # Cache folder.
-    cache_folder = 'seqs'
+    # Cache folder in user home.
+    cache_folder = os.path.join(os.environ['HOME'], '.blaster/seqs')
     # Check if cache folder exists.
-    if not os.path.isdir(cache_folder):
-        os.mkdir(cache_folder)
+    try:
+        os.makedirs(cache_folder)
+    except:
+        pass
 
     #TODO add __str__ to classes.
 
