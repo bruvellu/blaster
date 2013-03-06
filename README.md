@@ -7,9 +7,9 @@ database (eg, transcriptome from an organism) to find related loci. These loci a
 
 1. Install dependencies.
 
-    - Python 2.7 (not Python 3)
-    - Biopython 1.56
-    - BLAST+ 2.2.25
+        - Python 2.7 (not Python 3)
+        - Biopython 1.56
+        - BLAST+ 2.2.25
 
 2. Copy the `blaster.py` to a new folder where it will run.
 
