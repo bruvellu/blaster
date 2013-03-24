@@ -142,14 +142,14 @@ class Sequence(object):
         organism = self.organism
         base_path = '/home/nelas/Biologia/Doutorado/databases/'
         reciprocals = {
-                'Homo sapiens': 'human_protein.fa',
-                'Drosophila melanogaster': 'drosophila.fa',
-                'Danio rerio': 'zebrafish.fa',
-                'Mus musculus': 'mouse.fa',
-                'Strongylocentrotus purpuratus': 'urchin.fa',
-                'Ciona intestinalis': 'ciona.fa',
-                'Prostheceraeus vittatus': 'prostheceraeus.fa',
-                }
+            'Homo sapiens': 'human_protein.fa',
+            'Drosophila melanogaster': 'drosophila.fa',
+            'Danio rerio': 'zebrafish.fa',
+            'Mus musculus': 'mouse.fa',
+            'Strongylocentrotus purpuratus': 'urchin.fa',
+            'Ciona intestinalis': 'ciona.fa',
+            'Prostheceraeus vittatus': 'prostheceraeus.fa',
+        }
         try:
             self.reciprocal_db = os.path.join(base_path, reciprocals[organism])
         except:
@@ -174,10 +174,10 @@ class Sequence(object):
                             # Only first hsp found for locus is added, other are skipped.
                             if not locus_id in self.loci.keys():
                                 self.loci[locus_id] = {
-                                        'score': hsp.score,
-                                        'evalue': hsp.expect,
-                                        'frame': hsp.frame[1],  # hit frame
-                                        }
+                                    'score': hsp.score,
+                                    'evalue': hsp.expect,
+                                    'frame': hsp.frame[1],  # hit frame
+                                }
 
                             n += 1
 
@@ -254,10 +254,12 @@ class Locus(object):
         if not organism in self.reciprocal_blasts.keys():
             o = organism.replace(' ', '_')
             blast_output = os.path.join(
-                    self.reverse_results_folder, '%s-%s.xml' % (self.filename, o))
+                self.reverse_results_folder, '%s-%s.xml' % (self.filename, o)
+            )
             self.reciprocal_blasts[organism] = {
-                    'path': blast_output, 'sequences': []
-                    }
+                'path': blast_output,
+                'sequences': []
+            }
         return self.reciprocal_blasts[organism]['path']
 
     def set_filepath(self):
@@ -426,11 +428,11 @@ def main(argv):
             'database=',
             'blast=',
             'email=',
-            ])
+        ])
     except getopt.GetoptError:
         usage()
         logger.critical('Argument error: "%s". Aborting...',
-                ' '.join(argv))
+                        ' '.join(argv))
         sys.exit(2)
 
     # Argument handler.
@@ -471,7 +473,7 @@ def main(argv):
     # Issue error if there are no candidate genes.
     if not candidates:
         logger.critical('No candidate genes at %s folder! Aborting...',
-                candidates_folder)
+                        candidates_folder)
         sys.exit(2)
 
     # Check if results folder exists.
@@ -488,8 +490,8 @@ def main(argv):
     candidates = [file for file in candidates if file.endswith(('.gb', '.genbank'))]
 
     # Print info before starting.
-    logger.info('%d genes to be BLASTed against %s database!', len(candidates),
-            database)
+    logger.info('%d genes to be BLASTed against %s database!',
+                len(candidates), database)
 
     # Main object to store genes and loci.
     genes = {}
@@ -518,15 +520,15 @@ def main(argv):
                 'db': database,
                 'out': candidate.blast_output,
                 'outfmt': 5,  # Export in XML
-                }
+            }
             # Execute BLAST command.
             local_blast(blast_type, arguments)
 
         logger.info('Parsing XML...')
         print '\nCandidate >> Gene: %s, ID:%s, Ref: %s, Description: %s' % (
-                candidate.gene_name, candidate.gene_id,
-                candidate.ref, candidate.description
-                )
+            candidate.gene_name, candidate.gene_id,
+            candidate.ref, candidate.description
+        )
         candidate.parse_blast()
 
         # Work on loci.
@@ -554,11 +556,11 @@ def main(argv):
                 if candidate.reciprocal_db:
                     # Sanitize filepaths for shell (ie handling "|" in locus IDs).
                     reverse_args = {
-                            'query': '"%s"' % locus.filepath,
-                            'db': candidate.reciprocal_db,
-                            'out': '"%s"' % reverse_blast_output,
-                            'outfmt': 5,
-                            }
+                        'query': '"%s"' % locus.filepath,
+                        'db': candidate.reciprocal_db,
+                        'out': '"%s"' % reverse_blast_output,
+                        'outfmt': 5,
+                    }
                     #XXX What to do when recirocal database is not protein?
                     if blast_type == 'tblastn':
                         local_blast('blastx', reverse_args)
@@ -569,7 +571,7 @@ def main(argv):
                     #XXX Handle blastp as above, also.
                     print 'BLASTing over NCBI... (may take a while).'
                     logger.info('BLASTing %s over NCBI (restricted to %s).',
-                            locus.filepath, candidate.organism)
+                                locus.filepath, candidate.organism)
                     handle = NCBIWWW.qblast('blastx', 'refseq_protein', open(locus.filepath).read(), entrez_query='%s[Organism]' % candidate.organism)
                     reverse_file = open(reverse_blast_output, 'w')
                     reverse_file.write(handle.read())
